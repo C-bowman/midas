@@ -1,14 +1,6 @@
 from numpy import ndarray
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
-
-
-class FieldParameterisation(ABC):
-    n_params: int
-
-    @abstractmethod
-    def build_interpolator_matrix(self, *args) -> ndarray:
-        pass
+from midas.fields import FieldModel
+from midas.parameters import ParameterVector, FieldRequest
 
 
 class PlasmaState:
@@ -22,63 +14,97 @@ class PlasmaState:
     radius: ndarray
     n_params: int
     slices = {}
-    parameters = {}
-    fields: FieldParameterisation
+    fields: dict[str, FieldModel]
 
     @classmethod
-    def specify_field_model(cls, field_model: FieldParameterisation):
-        cls.fields = field_model
+    def specify_field_models(cls, fields: dict[str, FieldModel]):
+        cls.fields = fields
 
     @classmethod
     def build_parametrisation(cls, components):
-        # inspect all the posterior components and extract all fields
-        # and parameters that are required
+        # First check that the requested fields and the modelled fields match each other
         assert cls.fields is not None
-        cls.parameters = {}
+        requested_fields = set()
+        [[requested_fields.add(f) for f in c.field_requests] for c in components]
+        modelled_fields = {f for f in cls.fields.keys()}
+        if modelled_fields != requested_fields:
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState error ]
+                \r>> The set of fields requested by the diagnostic likelihoods and / or
+                \r>> priors does not match the set of modelled fields.
+                \r>> The requested fields are:
+                \r>> {requested_fields}
+                \r>> but the modelled fields are:
+                \r>> {modelled_fields}
+                """
+            )
+
+        # sort the field sizes by name
+        slice_sizes = sorted([(f.name, f.n_params) for f in cls.fields.values()])
+
+
+        parameter_sizes = {}
         for c in components:
-            for p in c.parameters:
-                if p.tag not in cls.parameters:
-                    cls.parameters[p.tag] = p
-                elif cls.parameters[p.tag] != p:
+            for p in c.parameter_checks:
+                assert isinstance(p, ParameterVector)
+                if p.name not in parameter_sizes:
+                    parameter_sizes[p.name] = p.size
+                elif parameter_sizes[p.name] != p.size:
                     raise ValueError(
-                        f"""
-                        Two instances of 'Parameter' have matching tags but differ in
-                        type or size:
-                        >> types are '{p.type}' and '{cls.parameters[p.tag].type}'
-                        >> sizes are '{p.size}' and '{cls.parameters[p.tag].size}'
+                        f"""\n
+                        \r[ PlasmaState error ]
+                        \r>> Two instances of 'ParameterVector' have matching names '{p.name}'
+                        \r>> but differ in their size:
+                        \r>> sizes are '{p.size}' and '{parameter_sizes[p.name]}'
                         """
                     )
 
-        # sort by type, then by variable name
-        pars = sorted(cls.parameters.values(), key=lambda x: x.tag)
-        pars = sorted(pars, key=lambda x: x.type)
-        # replace the types with the variable sizes
+        # sort the parameter sizes by name
+        slice_sizes.extend(
+            sorted([t for t in cls.parameter_checks.items()], key=lambda x: x[0])
+        )
         # now build pairs of parameter names and slice objects
         slices = []
-        for p in pars:
+        for name, size in slice_sizes:
             if len(slices) == 0:
-                slices.append((p.tag, slice(0, p.size)))
+                slices.append((name, slice(0, size)))
             else:
                 last = slices[-1][1].stop
-                slices.append((p.tag, slice(last, last + p.size)))
+                slices.append((name, slice(last, last + size)))
 
-        # the stop field of the last slice is the total number of parameter values
+        # the stop field of the last slice is the total number of parameters
         cls.n_params = slices[-1][1].stop
         # convert to a dictionary which maps parameter names to corresponding
         # slices of the parameter vector
         cls.slices = dict(slices)
 
-    @classmethod
-    def get(cls, tag):
-        return cls.theta[cls.slices[tag]]
-
-    @classmethod
-    def values_and_slice(cls, tag):
-        slc = cls.slices[tag]
-        return cls.theta[slc], slc
-
     def split_parameters(self, theta):
         return {tag: theta[slc] for tag, slc in self.slices.items()}
+
+    @classmethod
+    def get_values(cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]):
+        param_values = {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
+        field_values = {
+            f.name: cls.fields[f.name].get_values(cls.theta[cls.slices[f.name]], f)
+            for f in field_requests
+        }
+        return param_values, field_values
+
+    @classmethod
+    def get_values_and_jacobian(cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]):
+        param_values = {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
+        field_values = {}
+        field_jacobians = {}
+        for f in field_requests:
+            field_model = cls.fields[f.name]
+            field_params = cls.theta[cls.slices[f.name]]
+            values, jacobian = field_model.get_values_and_jacobian(field_params, f)
+
+            field_values[f.name] = values
+            field_jacobians[f.name] = jacobian
+
+        return param_values, field_values, field_jacobians
 
 
 class Posterior:
@@ -99,10 +125,3 @@ class Posterior:
 
     def cost_gradient(self, theta: ndarray) -> ndarray:
         return -self.gradient(theta)
-
-
-@dataclass(eq=True)
-class Parameter:
-    tag: str
-    type: str
-    size: int
