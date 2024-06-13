@@ -17,15 +17,15 @@ class PlasmaState:
     fields: dict[str, FieldModel]
 
     @classmethod
-    def specify_field_models(cls, fields: dict[str, FieldModel]):
-        cls.fields = fields
+    def specify_field_models(cls, field_models: list[FieldModel]):
+        cls.fields = {f.name: f for f in field_models}
 
     @classmethod
     def build_parametrisation(cls, components):
         # First check that the requested fields and the modelled fields match each other
         assert cls.fields is not None
         requested_fields = set()
-        [[requested_fields.add(f) for f in c.field_requests] for c in components]
+        [[requested_fields.add(f.name) for f in c.field_requests] for c in components]
         modelled_fields = {f for f in cls.fields.keys()}
         if modelled_fields != requested_fields:
             raise ValueError(
@@ -41,12 +41,11 @@ class PlasmaState:
             )
 
         # sort the field sizes by name
-        slice_sizes = sorted([(f.name, f.n_params) for f in cls.fields.values()])
-
+        slice_sizes = sorted([(name, f.n_params) for name, f in cls.fields.items()])
 
         parameter_sizes = {}
         for c in components:
-            for p in c.parameter_checks:
+            for p in c.parameters:
                 assert isinstance(p, ParameterVector)
                 if p.name not in parameter_sizes:
                     parameter_sizes[p.name] = p.size
@@ -62,7 +61,7 @@ class PlasmaState:
 
         # sort the parameter sizes by name
         slice_sizes.extend(
-            sorted([t for t in cls.parameter_checks.items()], key=lambda x: x[0])
+            sorted([t for t in parameter_sizes.items()], key=lambda x: x[0])
         )
         # now build pairs of parameter names and slice objects
         slices = []
@@ -83,7 +82,9 @@ class PlasmaState:
         return {tag: theta[slc] for tag, slc in self.slices.items()}
 
     @classmethod
-    def get_values(cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]):
+    def get_values(
+        cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]
+    ):
         param_values = {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
         field_values = {
             f.name: cls.fields[f.name].get_values(cls.theta[cls.slices[f.name]], f)
@@ -92,7 +93,9 @@ class PlasmaState:
         return param_values, field_values
 
     @classmethod
-    def get_values_and_jacobian(cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]):
+    def get_values_and_jacobians(
+        cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]
+    ):
         param_values = {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
         field_values = {}
         field_jacobians = {}

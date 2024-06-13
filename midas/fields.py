@@ -17,10 +17,12 @@ class FieldModel(ABC):
 
 
 class PiecewiseLinearField(FieldModel):
-    def __init__(self, axis: ndarray, axis_name: str):
+    def __init__(self, field_name: str, axis: ndarray, axis_name: str):
         assert axis.ndim == 1
         assert axis.size > 1
         assert (diff(axis) > 0.).all()
+        self.name = field_name
+        self.n_params = axis.size
         self.axis = axis
         self.axis_name = axis_name
         self.matrix_cache = {}
