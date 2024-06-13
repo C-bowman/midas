@@ -1,15 +1,11 @@
 from numpy import ndarray
 from midas.fields import FieldModel
 from midas.parameters import ParameterVector, FieldRequest
+from midas.likelihoods import DiagnosticLikelihood
+from midas.priors import BasePrior
 
 
 class PlasmaState:
-    """
-    this 'Plasma' object could serve as the interface to the plasma solution,
-    and would contain the TriangularMesh object or some other representation
-    of the plasma solution
-    """
-
     theta: ndarray
     radius: ndarray
     n_params: int
@@ -21,7 +17,7 @@ class PlasmaState:
         cls.fields = {f.name: f for f in field_models}
 
     @classmethod
-    def build_parametrisation(cls, components):
+    def build_parametrisation(cls, components: list[DiagnosticLikelihood | BasePrior]):
         # First check that the requested fields and the modelled fields match each other
         assert cls.fields is not None
         requested_fields = set()
@@ -111,7 +107,7 @@ class PlasmaState:
 
 
 class Posterior:
-    def __init__(self, components: list):
+    def __init__(self, components: list[DiagnosticLikelihood | BasePrior]):
         self.components = components
         PlasmaState.build_parametrisation(components)
 

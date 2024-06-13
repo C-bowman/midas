@@ -27,7 +27,7 @@ class PiecewiseLinearField(FieldModel):
         self.axis_name = axis_name
         self.matrix_cache = {}
 
-    def get_basis(self, field: FieldRequest):
+    def get_basis(self, field: FieldRequest) -> ndarray:
         if field in self.matrix_cache:
             A = self.matrix_cache[field]
         else:
