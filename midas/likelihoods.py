@@ -1,5 +1,5 @@
 from numpy import ndarray, log, pi, zeros
-from midas import PlasmaState
+from midas.state import PlasmaState
 from midas.models import DiagnosticModel
 
 
@@ -10,7 +10,7 @@ class DiagnosticLikelihood:
         self.field_requests = self.forward_model.field_requests
         self.parameters = self.forward_model.parameters
 
-    def __call__(self) -> float:
+    def log_probability(self) -> float:
         param_values, field_values = PlasmaState.get_values(
             parameters=self.parameters, field_requests=self.field_requests
         )
@@ -19,7 +19,7 @@ class DiagnosticLikelihood:
 
         return self.likelihood.log_likelihood(predictions)
 
-    def gradient(self) -> ndarray:
+    def log_probability_gradient(self) -> ndarray:
         param_values, field_values, field_jacobians = (
             PlasmaState.get_values_and_jacobians(
                 parameters=self.parameters, field_requests=self.field_requests

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from midas import FieldRequest, ParameterVector
+from midas.parameters import FieldRequest, ParameterVector
 
 
 class DiagnosticModel(ABC):
