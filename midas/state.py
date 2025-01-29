@@ -1,4 +1,4 @@
-from numpy import ndarray
+from numpy import ndarray, zeros
 from midas.fields import FieldModel
 from midas.parameters import ParameterVector, FieldRequest
 
@@ -7,7 +7,8 @@ class PlasmaState:
     theta: ndarray
     radius: ndarray
     n_params: int
-    slices = {}
+    parameter_names: set[str]
+    slices: dict[str, slice] = {}
     fields: dict[str, FieldModel]
 
     @classmethod
@@ -71,9 +72,37 @@ class PlasmaState:
         # convert to a dictionary which maps parameter names to corresponding
         # slices of the parameter vector
         cls.slices = dict(slices)
+        cls.parameter_names = {name for name in cls.slices.keys()}
 
-    def split_parameters(self, theta):
-        return {tag: theta[slc] for tag, slc in self.slices.items()}
+    @classmethod
+    def split_parameters(cls, theta: ndarray) -> dict[str, ndarray]:
+        if not isinstance(theta, ndarray) or theta.shape != (cls.n_params,):
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState.split_parameters error ]
+                \r>> Given 'theta' argument must be an instance of a
+                \r>> numpy.ndarray with shape ({cls.n_params},).
+                """
+            )
+        return {tag: theta[slc] for tag, slc in cls.slices.items()}
+
+    @classmethod
+    def merge_parameters(cls, parameter_values: dict[str, ndarray | float]) -> ndarray:
+        theta = zeros(cls.n_params)
+
+        missing_params = cls.parameter_names - {k for k in parameter_values.keys()}
+        if len(missing_params) > 0:
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState.merge_parameters error ]
+                \r>> The given 'parameter_values' dictionary must contain all
+                \r>> parameter names as keys. These names are
+                """
+            )
+
+        for tag, slc in cls.slices.items():
+            theta[slc] = parameter_values.get(tag)
+        return theta
 
     @classmethod
     def get_values(
