@@ -96,7 +96,8 @@ class PlasmaState:
                 f"""\n
                 \r[ PlasmaState.merge_parameters error ]
                 \r>> The given 'parameter_values' dictionary must contain all
-                \r>> parameter names as keys. These names are
+                \r>> parameter names as keys. The missing names are:
+                \r>> {missing_params}
                 """
             )
 

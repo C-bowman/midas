@@ -14,6 +14,17 @@ class FieldRequest:
     coordinates: dict[str, ndarray]
 
     def __post_init__(self):
+        # validate the inputs
+        assert isinstance(self.name, str)
+        assert isinstance(self.coordinates, dict)
+        coord_sizes = set()
+        for key, value in self.coordinates:
+            assert isinstance(key, str)
+            assert isinstance(value, ndarray)
+            assert value.ndim == 1
+            coord_sizes.add(value.size)
+        assert len(coord_sizes) == 1
+
         key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
         self.__hash = hash(key)
 
