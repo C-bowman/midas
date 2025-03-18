@@ -18,7 +18,7 @@ class FieldRequest:
         assert isinstance(self.name, str)
         assert isinstance(self.coordinates, dict)
         coord_sizes = set()
-        for key, value in self.coordinates:
+        for key, value in self.coordinates.items():
             assert isinstance(key, str)
             assert isinstance(value, ndarray)
             assert value.ndim == 1
