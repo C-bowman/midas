@@ -23,10 +23,14 @@ class FieldRequest:
             assert isinstance(value, ndarray)
             assert value.ndim == 1
             coord_sizes.add(value.size)
+        # if set size is 1, then all coord arrays are of equal size
         assert len(coord_sizes) == 1
 
-        key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
-        self.__hash = hash(key)
+        coord_key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
+        self.__hash = hash((self.name, coord_key))
 
     def __hash__(self):
         return self.__hash
+
+    def __eq__(self, other):
+        return self.__hash == hash(other)
