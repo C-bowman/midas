@@ -25,7 +25,7 @@ class FieldRequest:
             coord_sizes.add(value.size)
         # if set size is 1, then all coord arrays are of equal size
         assert len(coord_sizes) == 1
-
+        self.size = coord_sizes.pop()
         coord_key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
         self.__hash = hash((self.name, coord_key))
 
