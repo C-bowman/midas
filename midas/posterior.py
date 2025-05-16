@@ -22,3 +22,14 @@ class Posterior:
 
     def cost_gradient(self, theta: ndarray) -> ndarray:
         return -self.gradient(theta)
+
+    def component_log_probabilities(self, theta: ndarray) -> dict[str, float]:
+        PlasmaState.theta = theta.copy()
+        return {comp.name: comp.log_probability() for comp in self.components}
+
+    def get_model_predictions(self, theta: ndarray) -> dict[str, ndarray]:
+        PlasmaState.theta = theta.copy()
+        return {
+            comp.name: comp.get_predictions() for comp in self.components
+            if isinstance(comp, DiagnosticLikelihood)
+        }
