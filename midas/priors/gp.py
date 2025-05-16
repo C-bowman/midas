@@ -15,9 +15,11 @@ class GaussianProcessPrior(BasePrior):
         covariance: CovarianceFunction,
         mean: MeanFunction,
         field_positions: FieldRequest,
+        name: str
     ):
         self.cov = covariance
         self.mean = mean
+        self.name = name
         self.field = field_positions.name
         self.I = eye(field_positions.size)
 

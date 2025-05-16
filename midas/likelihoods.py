@@ -4,9 +4,10 @@ from midas.models import DiagnosticModel
 
 
 class DiagnosticLikelihood:
-    def __init__(self, diagnostic_model: DiagnosticModel, likelihood: callable):
+    def __init__(self, diagnostic_model: DiagnosticModel, likelihood: callable, name: str):
         self.forward_model = diagnostic_model
         self.likelihood = likelihood
+        self.name = name
         self.field_requests = self.forward_model.field_requests
         self.parameters = self.forward_model.parameters
 
@@ -71,12 +72,12 @@ class GaussianLikelihood:
         self.sigma = sigma
         self.n_data = self.y.size
         self.inv_sigma = 1.0 / self.sigma
-        self.inv_sigma_sqr = self.inv_sigma**2
+        self.inv_sigma_sqr = self.inv_sigma ** 2
         self.normalisation = -log(self.sigma).sum() - 0.5 * log(2 * pi) * self.n_data
 
     def log_likelihood(self, predictions):
         z = (self.y - predictions) * self.inv_sigma
-        return -0.5 * (z**2).sum() + self.normalisation
+        return -0.5 * (z ** 2).sum() + self.normalisation
 
     def predictions_derivative(self, predictions):
         return (self.y - predictions) * self.inv_sigma_sqr

@@ -7,6 +7,7 @@ from midas.parameters import ParameterVector, FieldRequest
 class BasePrior(ABC):
     parameters: list[ParameterVector]
     field_requests: list[FieldRequest]
+    name: str
 
     @abstractmethod
     def probability(self, **kwargs) -> float:
