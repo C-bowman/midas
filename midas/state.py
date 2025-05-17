@@ -10,6 +10,7 @@ class PlasmaState:
     parameter_names: set[str]
     slices: dict[str, slice] = {}
     fields: dict[str, FieldModel]
+    components: list
 
     @classmethod
     def specify_field_models(cls, field_models: list[FieldModel]):
@@ -73,6 +74,7 @@ class PlasmaState:
         # slices of the parameter vector
         cls.slices = dict(slices)
         cls.parameter_names = {name for name in cls.slices.keys()}
+        cls.components = components
 
     @classmethod
     def split_parameters(cls, theta: ndarray) -> dict[str, ndarray]:
