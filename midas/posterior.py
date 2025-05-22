@@ -1,4 +1,5 @@
-from numpy import ndarray
+from numpy import array, ndarray
+from collections import defaultdict
 from midas.likelihoods import DiagnosticLikelihood
 from midas.state import PlasmaState
 
@@ -34,3 +35,21 @@ class Posterior:
             comp.name: comp.get_predictions() for comp in PlasmaState.components
             if isinstance(comp, DiagnosticLikelihood)
         }
+
+    @staticmethod
+    def sample_model_predictions(parameter_samples: ndarray) -> dict[str, ndarray]:
+        assert isinstance(parameter_samples, ndarray)
+        assert parameter_samples.ndim == 2
+        assert parameter_samples.shape[1] == PlasmaState.n_params
+
+        predictions = defaultdict(list)
+
+        # group model predictions for each sample into lists
+        for theta in parameter_samples:
+            PlasmaState.theta = theta.copy()
+            for comp in PlasmaState.components:
+                predictions[comp.name].append(comp.get_predictions())
+
+        # convert the lists of arrays into 2D arrays
+        predictions = {name: array(val) for name, val in predictions.items()}
+        return predictions

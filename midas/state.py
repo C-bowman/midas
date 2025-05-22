@@ -89,6 +89,23 @@ class PlasmaState:
         return {tag: theta[slc] for tag, slc in cls.slices.items()}
 
     @classmethod
+    def split_samples(cls, parameter_samples: ndarray) -> dict[str, ndarray]:
+        valid_samples = (
+            isinstance(parameter_samples, ndarray)
+            and parameter_samples.ndim == 2
+            and parameter_samples.shape[1] == cls.n_params
+        )
+        if not valid_samples:
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState.split_samples error ]
+                \r>> Given 'parameter_samples' argument must be an instance of a
+                \r>> numpy.ndarray with shape (n, {cls.n_params}).
+                """
+            )
+        return {tag: parameter_samples[:, slc] for tag, slc in cls.slices.items()}
+
+    @classmethod
     def merge_parameters(cls, parameter_values: dict[str, ndarray | float]) -> ndarray:
         theta = zeros(cls.n_params)
 
