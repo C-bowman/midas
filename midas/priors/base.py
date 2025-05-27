@@ -40,8 +40,9 @@ class BasePrior(ABC):
             slc = PlasmaState.slices[p]
             grad[slc] = gradients[p]
 
-        for f in field_values.keys():
-            slc = PlasmaState.slices[f]
-            grad[slc] = gradients[f] @ field_jacobians[f]
+        for field_param in field_jacobians.keys():
+            field_name = PlasmaState.field_parameter_map[field_param]
+            slc = PlasmaState.slices[field_param]
+            grad[slc] = gradients[field_name] @ field_jacobians[field_param]
 
         return grad

@@ -10,6 +10,7 @@ class PlasmaState:
     parameter_names: set[str]
     slices: dict[str, slice] = {}
     fields: dict[str, FieldModel]
+    field_parameter_map: dict[str, str]
     components: list
 
     @classmethod
@@ -36,8 +37,20 @@ class PlasmaState:
                 """
             )
 
+        # loop over field models and add their parameters
+        slice_sizes = []
+        for field_model in cls.fields.values():
+            slice_sizes.extend([(p.name, p.size) for p in field_model.parameters])
         # sort the field sizes by name
-        slice_sizes = sorted([(name, f.n_params) for name, f in cls.fields.items()])
+        slice_sizes = sorted(slice_sizes, key=lambda x: x[0])
+
+        # now build a map between the names of parameter vectors of field models,
+        # and the names of their parent fields:
+        cls.field_parameter_map = {}
+        for field_name, field_model in cls.fields.items():
+            cls.field_parameter_map.update(
+                {param.name: field_name for param in field_model.parameters}
+            )
 
         parameter_sizes = {}
         for c in components:
@@ -125,29 +138,34 @@ class PlasmaState:
         return theta
 
     @classmethod
+    def get_parameter_values(cls, parameters: list[ParameterVector]):
+        return {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
+
+    @classmethod
     def get_values(
         cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]
     ):
-        param_values = {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
-        field_values = {
-            f.name: cls.fields[f.name].get_values(cls.theta[cls.slices[f.name]], f)
-            for f in field_requests
-        }
+        param_values = cls.get_parameter_values(parameters)
+        field_values = {}
+        for f in field_requests:
+            field_model = cls.fields[f.name]
+            field_params = cls.get_parameter_values(field_model.parameters)
+            field_values[f.name] = field_model.get_values(field_params, f)
         return param_values, field_values
 
     @classmethod
     def get_values_and_jacobians(
         cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]
     ):
-        param_values = {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
+        param_values = cls.get_parameter_values(parameters)
         field_values = {}
-        field_jacobians = {}
+        field_param_jacobians = {}
         for f in field_requests:
             field_model = cls.fields[f.name]
-            field_params = cls.theta[cls.slices[f.name]]
-            values, jacobian = field_model.get_values_and_jacobian(field_params, f)
+            field_params = cls.get_parameter_values(field_model.parameters)
+            values, jacobians = field_model.get_values_and_jacobian(field_params, f)
 
             field_values[f.name] = values
-            field_jacobians[f.name] = jacobian
+            field_param_jacobians.update(jacobians)
 
-        return param_values, field_values, field_jacobians
+        return param_values, field_values, field_param_jacobians
