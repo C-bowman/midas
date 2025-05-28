@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from numpy import ndarray, log, pi, zeros
+from numpy import ndarray, log, exp, logaddexp, sqrt, pi, zeros
 from midas.state import PlasmaState
 from midas.models import DiagnosticModel
 
@@ -109,3 +109,41 @@ class GaussianLikelihood(LikelihoodFunction):
 
     def predictions_derivative(self, predictions: ndarray) -> ndarray:
         return (self.y - predictions) * self.inv_sigma_sqr
+
+
+class LogisticLikelihood(LikelihoodFunction):
+    """
+    A class for constructing a Logistic likelihood function.
+
+    :param y_data: \
+        The measured data as a 1D array.
+
+    :param sigma: \
+        The uncertainties corresponding to each element in ``y_data`` as a 1D array.
+    """
+    def __init__(
+        self,
+        y_data: ndarray,
+        sigma: ndarray,
+    ):
+        self.y = y_data
+        self.sigma = sigma
+
+        # pre-calculate some quantities as an optimisation
+        self.n_data = self.y.size
+        self.scale = self.sigma * (sqrt(3) / pi)
+        self.inv_scale = 1.0 / self.scale
+        self.normalisation = -log(self.scale).sum()
+
+    def log_likelihood(self, predictions: ndarray) -> float:
+        z = (self.y - predictions) * self.inv_scale
+        return z.sum() - 2 * logaddexp(0.0, z).sum() + self.normalisation
+
+    def predictions_derivative(self, predictions: ndarray) -> ndarray:
+        z = (self.y - predictions) * self.inv_scale
+        return (2 / (1 + exp(-z)) - 1) * self.inv_scale
+
+
+
+def validate_likelihood_data(values: ndarray, uncertainties: ndarray, error_source: str):
+ pass
