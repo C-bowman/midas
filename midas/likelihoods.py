@@ -1,10 +1,37 @@
+from abc import ABC, abstractmethod
 from numpy import ndarray, log, pi, zeros
 from midas.state import PlasmaState
 from midas.models import DiagnosticModel
 
 
+class LikelihoodFunction(ABC):
+    @abstractmethod
+    def log_likelihood(self, predictions: ndarray) -> float:
+        pass
+
+    @abstractmethod
+    def predictions_derivative(self, predictions: ndarray) -> ndarray:
+        pass
+
+
 class DiagnosticLikelihood:
-    def __init__(self, diagnostic_model: DiagnosticModel, likelihood: callable, name: str):
+    """
+    A class enabling the calculation of the likelihood (and its derivative) for the data
+    of a particular diagnostic.
+
+    :param diagnostic_model: \
+        An instance of a diagnostic model which inherits from the ``DiagnosticModel``
+        base class.
+
+    :param likelihood: \
+        An instance of a likelihood class which inherits from the ``LikelihoodFunction``
+        base class.
+
+    :param name: \
+        A name or other identifier for the diagnostic as a string.
+
+    """
+    def __init__(self, diagnostic_model: DiagnosticModel, likelihood: LikelihoodFunction, name: str):
         self.forward_model = diagnostic_model
         self.likelihood = likelihood
         self.name = name
@@ -53,7 +80,7 @@ class DiagnosticLikelihood:
         return self.forward_model.predictions(**param_values, **field_values)
 
 
-class GaussianLikelihood:
+class GaussianLikelihood(LikelihoodFunction):
     """
     A class for constructing a Gaussian likelihood function.
 
@@ -76,9 +103,9 @@ class GaussianLikelihood:
         self.inv_sigma_sqr = self.inv_sigma ** 2
         self.normalisation = -log(self.sigma).sum() - 0.5 * log(2 * pi) * self.n_data
 
-    def log_likelihood(self, predictions):
+    def log_likelihood(self, predictions: ndarray) -> float:
         z = (self.y - predictions) * self.inv_sigma
         return -0.5 * (z ** 2).sum() + self.normalisation
 
-    def predictions_derivative(self, predictions):
+    def predictions_derivative(self, predictions: ndarray) -> ndarray:
         return (self.y - predictions) * self.inv_sigma_sqr
