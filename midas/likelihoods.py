@@ -38,9 +38,10 @@ class DiagnosticLikelihood:
             slc = PlasmaState.slices[p]
             grad[slc] = dL_dp @ model_jacobians[p]
 
-        for f in field_values.keys():
-            slc = PlasmaState.slices[f]
-            grad[slc] = (dL_dp @ model_jacobians[f]) @ field_jacobians[f]
+        for field_param in field_jacobians.keys():
+            field_name = PlasmaState.field_parameter_map[field_param]
+            slc = PlasmaState.slices[field_param]
+            grad[slc] = (dL_dp @ model_jacobians[field_name]) @ field_jacobians[field_param]
 
         return grad
 
