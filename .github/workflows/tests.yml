@@ -5,10 +5,12 @@ on:
     paths:
       - '**.py'
       - '**.toml'
+      - '**.yml'
   pull_request:
     paths:
       - '**.py'
       - '**.toml'
+      - '**.yml'
 
 jobs:
   pytest:
