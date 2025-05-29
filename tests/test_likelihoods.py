@@ -1,12 +1,12 @@
 import pytest
 from numpy import array, nan
 from scipy.optimize import approx_fprime
-from midas.likelihoods import GaussianLikelihood, LogisticLikelihood
+from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
 
 
 @pytest.mark.parametrize(
     "likelihood",
-    [GaussianLikelihood, LogisticLikelihood],
+    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
 )
 def test_likelihood_validation(likelihood):
     y = array([1., 3., 4.])
@@ -31,13 +31,13 @@ def test_likelihood_validation(likelihood):
 
 @pytest.mark.parametrize(
     "likelihood",
-    [GaussianLikelihood, LogisticLikelihood],
+    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
 )
 def test_likelihoods_predictions_gradient(likelihood):
     test_values = array([3.58, 2.11, 7.89])
     y = array([1., 3., 4.])
     sig = array([5., 5., 3.])
-    func = likelihood(y_data=y, sigma=sig)
+    func = likelihood(y, sig)
 
     analytic_grad = func.predictions_derivative(predictions=test_values)
     numeric_grad = approx_fprime(f=func.log_likelihood, xk=test_values)
