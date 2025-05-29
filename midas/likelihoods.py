@@ -162,8 +162,8 @@ def validate_likelihood_data(
         raise TypeError(
             f"""\n
             \r[ {likelihood_name} error ]
-            \r>> The data values and uncertainties must be an instance of
-            \r>> (or inherit from) numpy.ndarray. Instead, the given types were
+            \r>> The data values and uncertainties must be instances of numpy.ndarray.
+            \r>> Instead, the given types were
             \r>> {type(values)}
             \r>> and
             \r>> {type(uncertainties)}
