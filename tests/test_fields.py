@@ -25,7 +25,7 @@ def test_piecewise_linear_field():
 
     # request the values and check they match the targets
     interpolated_values = linear_field.get_values(
-        parameters=basis_values,
+        parameters={"emission_linear_basis": basis_values},
         field=request
     )
 
