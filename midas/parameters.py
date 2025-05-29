@@ -7,6 +7,12 @@ class ParameterVector:
     name: str
     size: int
 
+    def __post_init__(self):
+        assert isinstance(self.size, int)
+        assert self.size > 0
+        assert isinstance(self.name, str)
+        assert len(self.name) > 0
+
 
 @dataclass
 class FieldRequest:
