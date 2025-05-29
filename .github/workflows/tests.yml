@@ -32,7 +32,7 @@ jobs:
         pip install .[tests]
     - name: Test with pytest
       run: |
-        pytest -v --cov=inference
+        pytest -v
 
   build-test:
     runs-on: ubuntu-latest
