@@ -8,6 +8,7 @@ class PlasmaState:
     radius: ndarray
     n_params: int
     parameter_names: set[str]
+    parameter_sizes: dict[str, int]
     slices: dict[str, slice] = {}
     fields: dict[str, FieldModel]
     field_parameter_map: dict[str, str]
@@ -87,6 +88,7 @@ class PlasmaState:
         # slices of the parameter vector
         cls.slices = dict(slices)
         cls.parameter_names = {name for name in cls.slices.keys()}
+        cls.parameter_sizes = {name: s.stop - s.start for name, s in cls.slices.items()}
         cls.components = components
 
     @classmethod
