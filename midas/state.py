@@ -1,6 +1,20 @@
+from typing import Protocol
+from collections.abc import Sequence
 from numpy import ndarray, zeros
 from midas.fields import FieldModel
 from midas.parameters import ParameterVector, FieldRequest
+
+
+class PosteriorComponent(Protocol):
+    parameters: list[ParameterVector]
+    field_requests: list[FieldRequest]
+    name: str
+
+    def log_probability(self) -> float:
+        ...
+
+    def log_probability_gradient(self) -> ndarray:
+        ...
 
 
 class PlasmaState:
@@ -12,23 +26,87 @@ class PlasmaState:
     slices: dict[str, slice] = {}
     fields: dict[str, FieldModel]
     field_parameter_map: dict[str, str]
-    components: list
+    components: list[PosteriorComponent]
 
     @classmethod
     def specify_field_models(cls, field_models: list[FieldModel]):
+        """
+        A function for specifying the models used to represent each of the fields
+        in the analysis.
+
+        Each of the given field models must have a unique ``name`` attribute, such that
+        each field is associated with only one model.
+
+        When the parametrisation for the posterior distribution is built
+        (this occurs when ``PlasmaState.build_parametrisation`` is called), a check will
+        be performed to ensure the set of fields covered by the models provided here
+        matches the set of fields whose values have been requested by diagnostic
+        models and prior distributions.
+
+        :param field_models: \
+            A ``list`` of ``FieldModel`` objects, which represent all the fields
+            being modelled in the analysis.
+        """
+        # first check that the given models are valid:
+        valid_models = isinstance(field_models, Sequence) and all(
+            isinstance(model, FieldModel) for model in field_models
+        )
+        if not valid_models:
+            raise ValueError(
+                """
+                \r[ PlasmaState.specify_field_models error ]
+                \r>> Given 'field_models' must be a sequence of objects
+                \r>> whose types derive from the 'FieldModel' abstract base class.
+                """
+            )
+
+        # check that each model is for a unique field
+        unique_fields = len({f.name for f in field_models}) == len(field_models)
+        if not unique_fields:
+            raise ValueError(
+                """
+                \r[ PlasmaState.specify_field_models error ]
+                \r>> The given field models must each specify a unique field name.
+                """
+            )
+
         cls.fields = {f.name: f for f in field_models}
 
     @classmethod
-    def build_parametrisation(cls, components: list):
-        # First check that the requested fields and the modelled fields match each other
-        assert cls.fields is not None
+    def build_parametrisation(cls, components: list[PosteriorComponent]):
+        """
+        Build the parametrisation for the posterior distribution by specifying the
+        likelihood and prior distributions of which it is comprised. Each of the given
+        components of the posterior are treated as independent, such that the posterior
+        log-probability is given by the sum of the component log-probabilities.
+
+        After this function has been called, the ``midas.posterior`` module can be used
+        to evaluate the posterior log-probability and its gradient.
+
+        :param components: \
+            A ``list`` containing instances of ``DiagnosticLikelihood`` and ``BasePrior``
+            which represent the likelihood and prior distributions that make up the
+            posterior.
+        """
+        # first check that field models have been specified
+        if cls.fields is None:
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState.build_parametrisation error ]
+                \r>> No models for the fields have been specified.
+                \r>> Use 'PlasmaState.specify_field_models' to specify models
+                \r>> for each of the fields in the analysis.
+                """
+            )
+
+        # Check that the requested fields and the modelled fields match each other
         requested_fields = set()
         [[requested_fields.add(f.name) for f in c.field_requests] for c in components]
         modelled_fields = {f for f in cls.fields.keys()}
         if modelled_fields != requested_fields:
             raise ValueError(
                 f"""\n
-                \r[ PlasmaState error ]
+                \r[ PlasmaState.build_parametrisation error ]
                 \r>> The set of fields requested by the diagnostic likelihoods and / or
                 \r>> priors does not match the set of modelled fields.
                 \r>> The requested fields are:
@@ -62,7 +140,7 @@ class PlasmaState:
                 elif parameter_sizes[p.name] != p.size:
                     raise ValueError(
                         f"""\n
-                        \r[ PlasmaState error ]
+                        \r[ PlasmaState.build_parametrisation error ]
                         \r>> Two instances of 'ParameterVector' have matching names '{p.name}'
                         \r>> but differ in their size:
                         \r>> sizes are '{p.size}' and '{parameter_sizes[p.name]}'
@@ -93,6 +171,18 @@ class PlasmaState:
 
     @classmethod
     def split_parameters(cls, theta: ndarray) -> dict[str, ndarray]:
+        """
+        Split an array of all posterior parameters into sub-arrays corresponding to
+        each named parameter set, and return a dictionary mapping the parameter set
+        names to the associated sub-arrays.
+
+        :param theta: \
+            A full set of posterior parameter values as a 1D array.
+
+        :return: \
+            A dictionary mapping the names of parameter sub-sets to the corresponding
+            sub-arrays of the posterior parameters.
+        """
         if not isinstance(theta, ndarray) or theta.shape != (cls.n_params,):
             raise ValueError(
                 f"""\n
@@ -105,6 +195,19 @@ class PlasmaState:
 
     @classmethod
     def split_samples(cls, parameter_samples: ndarray) -> dict[str, ndarray]:
+        """
+        Split an array of posterior parameter samples into sub-arrays corresponding to
+        samples of each named parameter set, and return a dictionary mapping the parameter
+        set names to the associated sub-arrays.
+
+        :param parameter_samples: \
+            Samples from the posterior distribution as a 2D of shape
+            ``(n_samples, n_parameters)``.
+
+        :return: \
+            A dictionary mapping the names of parameter sub-sets to the corresponding
+            sub-arrays of the posterior samples.
+        """
         valid_samples = (
             isinstance(parameter_samples, ndarray)
             and parameter_samples.ndim == 2
@@ -122,6 +225,17 @@ class PlasmaState:
 
     @classmethod
     def merge_parameters(cls, parameter_values: dict[str, ndarray | float]) -> ndarray:
+        """
+        Merge the values of named parameter sub-sets into a single array of posterior
+        parameter values.
+
+        :param parameter_values: \
+            A dictionary mapping the names of parameter sub-sets to arrays of values
+            for those parameters.
+
+        :return: \
+            A 1D array of posterior parameter values.
+        """
         theta = zeros(cls.n_params)
 
         missing_params = cls.parameter_names - {k for k in parameter_values.keys()}

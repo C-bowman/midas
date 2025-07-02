@@ -32,7 +32,11 @@ class FieldRequest:
         # if set size is 1, then all coord arrays are of equal size
         assert len(coord_sizes) == 1
         self.size = coord_sizes.pop()
+        # converting coordinate numpy array data to bytes allows us to create
+        # a hashable key for the overall coordinate set
         coord_key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
+        # use a tuple of the field name and coordinate key to create a key for
+        # the field request.
         self.__hash = hash((self.name, coord_key))
 
     def __hash__(self):
