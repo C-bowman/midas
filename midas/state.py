@@ -1,9 +1,20 @@
+from typing import Protocol
 from collections.abc import Sequence
 from numpy import ndarray, zeros
 from midas.fields import FieldModel
 from midas.parameters import ParameterVector, FieldRequest
-from midas.priors import BasePrior
-from midas.likelihoods import DiagnosticLikelihood
+
+
+class PosteriorComponent(Protocol):
+    parameters: list[ParameterVector]
+    field_requests: list[FieldRequest]
+    name: str
+
+    def log_probability(self) -> float:
+        ...
+
+    def log_probability_gradient(self) -> ndarray:
+        ...
 
 
 class PlasmaState:
@@ -15,7 +26,7 @@ class PlasmaState:
     slices: dict[str, slice] = {}
     fields: dict[str, FieldModel]
     field_parameter_map: dict[str, str]
-    components: list
+    components: list[PosteriorComponent]
 
     @classmethod
     def specify_field_models(cls, field_models: list[FieldModel]):
@@ -62,7 +73,7 @@ class PlasmaState:
         cls.fields = {f.name: f for f in field_models}
 
     @classmethod
-    def build_parametrisation(cls, components: list[DiagnosticLikelihood | BasePrior]):
+    def build_parametrisation(cls, components: list[PosteriorComponent]):
         """
         Build the parametrisation for the posterior distribution by specifying the
         likelihood and prior distributions of which it is comprised. Each of the given
