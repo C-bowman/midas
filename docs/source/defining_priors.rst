@@ -1,0 +1,2 @@
+Defining the prior distribution
+===============================
