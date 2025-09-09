@@ -24,7 +24,7 @@ class PlasmaState:
     parameter_names: set[str]
     parameter_sizes: dict[str, int]
     slices: dict[str, slice] = {}
-    fields: dict[str, FieldModel]
+    fields: dict[str, FieldModel] = {}
     field_parameter_map: dict[str, str]
     components: list[PosteriorComponent]
 
@@ -88,21 +88,27 @@ class PlasmaState:
             which represent the likelihood and prior distributions that make up the
             posterior.
         """
-        # first check that field models have been specified
-        if cls.fields is None:
+        # first gather all the fields that have been requested by the components
+        requested_fields = set()
+        [[requested_fields.add(f.name) for f in c.field_requests] for c in components]
+
+        # If fields have been requested, but no field models have been specified,
+        # tell the user how to specify them
+        modelled_fields = {f for f in cls.fields.keys()}
+        if len(modelled_fields) == 0 and len(requested_fields) > 0:
             raise ValueError(
                 f"""\n
                 \r[ PlasmaState.build_parametrisation error ]
                 \r>> No models for the fields have been specified.
                 \r>> Use 'PlasmaState.specify_field_models' to specify models
-                \r>> for each of the fields in the analysis.
+                \r>> for each of the requested fields in the analysis.
+                \r>> The requested fields are:
+                \r>> {requested_fields}
                 """
             )
 
-        # Check that the requested fields and the modelled fields match each other
-        requested_fields = set()
-        [[requested_fields.add(f.name) for f in c.field_requests] for c in components]
-        modelled_fields = {f for f in cls.fields.keys()}
+        # If field models have been specified, but they do not match the requested
+        # fields, show the mismatch
         if modelled_fields != requested_fields:
             raise ValueError(
                 f"""\n
