@@ -1,5 +1,6 @@
 from typing import Protocol
 from collections.abc import Sequence
+from itertools import chain
 from numpy import ndarray, zeros
 from midas.fields import FieldModel
 from midas.parameters import ParameterVector, FieldRequest
@@ -122,14 +123,7 @@ class PlasmaState:
                 """
             )
 
-        # loop over field models and add their parameters
-        slice_sizes = []
-        for field_model in cls.fields.values():
-            slice_sizes.extend([(p.name, p.size) for p in field_model.parameters])
-        # sort the field sizes by name
-        slice_sizes = sorted(slice_sizes, key=lambda x: x[0])
-
-        # now build a map between the names of parameter vectors of field models,
+        # Build a map between the names of parameter vectors of field models,
         # and the names of their parent fields:
         cls.field_parameter_map = {}
         for field_name, field_model in cls.fields.items():
@@ -137,9 +131,10 @@ class PlasmaState:
                 {param.name: field_name for param in field_model.parameters}
             )
 
+        # Collect the sizes of all unique ParameterVector objects in the analysis
         parameter_sizes = {}
-        for c in components:
-            for p in c.parameters:
+        for f in chain(components, cls.fields.values()):
+            for p in f.parameters:
                 assert isinstance(p, ParameterVector)
                 if p.name not in parameter_sizes:
                     parameter_sizes[p.name] = p.size
@@ -154,9 +149,7 @@ class PlasmaState:
                     )
 
         # sort the parameter sizes by name
-        slice_sizes.extend(
-            sorted([t for t in parameter_sizes.items()], key=lambda x: x[0])
-        )
+        slice_sizes = sorted([t for t in parameter_sizes.items()], key=lambda x: x[0])
         # now build pairs of parameter names and slice objects
         slices = []
         for name, size in slice_sizes:
