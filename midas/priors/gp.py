@@ -10,6 +10,33 @@ from midas.priors.base import BasePrior
 
 
 class GaussianProcessPrior(BasePrior):
+    """
+    Specify a Gaussian process prior over either a series of field values, or a
+    set of parameters and corresponding spatial coordinates.
+
+    :param name: \
+        The name used to identify the GP prior.
+
+    :param covariance: \
+        An instance of a ``CovarianceFunction`` class from the ``inference-tools`` package.
+
+    :param mean: \
+        An instance of a ``MeanFunction`` class from the ``inference-tools`` package.
+
+    :param field_positions: \
+        A ``FieldRequest`` specifying the field and coordinates which will be used to
+        construct the GP prior. If specified, ``field_positions`` will override
+        any values passed to the ``parameters`` or ``parameter_coordinates`` arguments.
+
+    :param parameters: \
+        A ``ParameterVector`` specifying which parameters will be used as inputs
+        to the GP prior.
+
+    :param parameter_coordinates: \
+        A set of coordinates (a dictionary mapping coordinate names as ``str`` to
+        coordinate values as ``numpy.ndarray``) corresponding the ``ParameterVector``
+        passed to the ``parameters`` argument.
+    """
     def __init__(
         self,
         name: str,
