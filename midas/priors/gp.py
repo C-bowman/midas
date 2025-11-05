@@ -49,8 +49,8 @@ class GaussianProcessPrior(BasePrior):
         self.cov.pass_spatial_data(spatial_data)
         self.mean.pass_spatial_data(spatial_data)
 
-        self.cov_tag = f"{self.target}_cov_hyperpars"
-        self.mean_tag = f"{self.target}_mean_hyperpars"
+        self.cov_tag = f"{self.name}_cov_hyperpars"
+        self.mean_tag = f"{self.name}_mean_hyperpars"
         self.parameters.extend(
             [
                 ParameterVector(name=self.cov_tag, size=self.cov.n_params),
