@@ -78,6 +78,11 @@ class GaussianProcessPrior(BasePrior):
 
         self.cov_tag = f"{self.name}_cov_hyperpars"
         self.mean_tag = f"{self.name}_mean_hyperpars"
+        self.hyperparameters = {
+            self.cov_tag: self.cov.hyperpar_labels,
+            self.mean_tag: self.mean.hyperpar_labels
+        }
+
         self.parameters.extend(
             [
                 ParameterVector(name=self.cov_tag, size=self.cov.n_params),
