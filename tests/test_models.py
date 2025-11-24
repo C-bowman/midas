@@ -23,12 +23,12 @@ class StraightLine(DiagnosticModel):
         self.parameters = [ParameterVector(name="line_coefficients", size=2)]
         self.field_requests = []
 
-    def predictions(self, line_coefficients):
-        grad, offset = line_coefficients
+    def predictions(self, parameters, fields):
+        grad, offset = parameters["line_coefficients"]
         return grad * self.axis + offset
 
-    def predictions_and_jacobians(self, line_coefficients):
-        grad, offset = line_coefficients
+    def predictions_and_jacobians(self, parameters, fields):
+        grad, offset = parameters["line_coefficients"]
         jacobian = zeros([self.axis.size, 2])
         jacobian[:, 0] = self.axis
         jacobian[:, 1] = 1.0

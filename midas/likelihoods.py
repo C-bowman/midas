@@ -7,11 +7,25 @@ from midas.models import DiagnosticModel
 class LikelihoodFunction(ABC):
     @abstractmethod
     def log_likelihood(self, predictions: ndarray) -> float:
+        """
+        :param predictions: \
+            The model predictions of the measured data as a 1D array.
+
+        :return: \
+            The calculated log-likelihood.
+        """
         pass
 
     @abstractmethod
     def predictions_derivative(self, predictions: ndarray) -> ndarray:
-        pass
+        """
+        :param predictions: \
+            The model predictions of the measured data as a 1D array.
+
+        :return: \
+            The derivative of the log-likelihood with respect to each element of
+            ``predictions`` as a 1D array.
+        """
 
 
 class DiagnosticLikelihood:
@@ -49,7 +63,9 @@ class DiagnosticLikelihood:
             parameters=self.parameters, field_requests=self.field_requests
         )
 
-        predictions = self.forward_model.predictions(**param_values, **field_values)
+        predictions = self.forward_model.predictions(
+            parameters=param_values, fields=field_values
+        )
 
         return self.likelihood.log_likelihood(predictions)
 
@@ -61,7 +77,7 @@ class DiagnosticLikelihood:
         )
 
         predictions, model_jacobians = self.forward_model.predictions_and_jacobians(
-            **param_values, **field_values
+            parameters=param_values, fields=field_values
         )
 
         dL_dp = self.likelihood.predictions_derivative(predictions)
