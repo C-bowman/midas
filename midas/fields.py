@@ -4,6 +4,9 @@ from midas.parameters import FieldRequest, ParameterVector
 
 
 class FieldModel(ABC):
+    """
+    An abstract base-class for field models.
+    """
     n_params: int
     name: str
     parameters: list[ParameterVector]
@@ -12,16 +15,70 @@ class FieldModel(ABC):
     def get_values(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> ndarray:
+        """
+        Get the values of the field at a set of given coordinates.
+
+        :param parameters: \
+            The parameter values requested via the ``ParameterVector`` objects stored
+            in the ``parameters`` instance attribute.
+            These values are given as a dictionary mapping the parameter names
+            (specified by the ``name`` attribute of the ``ParameterVector`` objects)
+            to the parameter values as 1D arrays.
+
+        :param field: \
+            A ``FieldRequest`` specifying the coordinates at which the modelled field
+            values should be calculated.
+
+        :return: \
+            The modelled field values as a 1D array.
+        """
         pass
 
     @abstractmethod
     def get_values_and_jacobian(
         self, parameters: dict[str, ndarray], field: FieldRequest
-    ) -> tuple[ndarray, ndarray]:
+    ) -> tuple[ndarray, dict[str, ndarray]]:
+        """
+        Get the values of the field at a set of given coordinates, and the Jacobian
+        of those fields values with respect to the given parameters values.
+
+        :param parameters: \
+            The parameter values requested via the ``ParameterVector`` objects stored
+            in the ``parameters`` instance attribute.
+            These values are given as a dictionary mapping the parameter names
+            (specified by the ``name`` attribute of the ``ParameterVector`` objects)
+            to the parameter values as 1D arrays.
+
+        :param field: \
+            A ``FieldRequest`` specifying the coordinates at which the modelled field
+            values should be calculated.
+
+        :return: \
+            The field values as a 1D array, followed by the Jacobians of the field
+            values with respect to the given parameter values.
+
+            The Jacobians must be returned as a dictionary mapping the parameter names
+            to the corresponding Jacobians as 2D arrays.
+        """
         pass
 
 
 class PiecewiseLinearField(FieldModel):
+    """
+    Models a chosen field as a piecewise-linear 1D profile.
+
+    :param field_name: \
+        The name of the field to be modelled.
+
+    :param axis: \
+        Coordinate values specifying the locations of the basis functions
+        which make up the 1D profile. The number of free parameters of the
+        field model will be equal to the size of ``axis``. The coordinate
+        values must be given in strictly ascending order.
+
+    :param axis_name: \
+        The name of the coordinate over which the 1D profile is defined.
+    """
     def __init__(self, field_name: str, axis: ndarray, axis_name: str):
         assert axis.ndim == 1
         assert axis.size > 1

@@ -19,7 +19,7 @@ Structure of a MIDAS analysis
 
 The high-level structure of a MIDAS analysis can be broken down as:
 
-* Create a ``DiagnosticLikelihood`` object for each diagnostic which is to be included in the
+* Create a :ref:`DiagnosticModel <DiagnosticModel-ref>` object for each diagnostic which is to be included in the
   analysis.
 * Specify the prior distribution (or its components) as ``BasePrior`` objects.
 * Specify models for the plasma fields in the analysis by calling the
