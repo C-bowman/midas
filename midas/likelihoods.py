@@ -5,12 +5,31 @@ from midas.models import DiagnosticModel
 
 
 class LikelihoodFunction(ABC):
+    """
+    An abstract base-class for likelihood function.
+    """
+
     @abstractmethod
     def log_likelihood(self, predictions: ndarray) -> float:
+        """
+        :param predictions: \
+            The model predictions of the measured data as a 1D array.
+
+        :return: \
+            The calculated log-likelihood.
+        """
         pass
 
     @abstractmethod
     def predictions_derivative(self, predictions: ndarray) -> ndarray:
+        """
+        :param predictions: \
+            The model predictions of the measured data as a 1D array.
+
+        :return: \
+            The derivative of the log-likelihood with respect to each element of
+            ``predictions`` as a 1D array.
+        """
         pass
 
 

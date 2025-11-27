@@ -3,7 +3,7 @@ MIDAS - multi-instrument Bayesian data analysis in Python
 
 Introduction
 ------------
-MIDAS is a framework for Bayesian and integrated data analysis.
+MIDAS is a framework for Bayesian and integrated data analysis in Python.
 
 Use diagnostic models from any source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -12,7 +12,8 @@ and does not require models to be implemented within a specific framework. Inste
 MIDAS provides tools to create a lightweight wrapper around external forward-models
 which allows them to interface with MIDAS.
 
-### Efficient inference through analytic propagation of derivatives
+Efficient inference through analytic propagation of derivatives
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Efficient MAP estimation and MCMC sampling in inference problems with ~20 or more free
 parameters relies heavily on the ability to calculate the derivative of the posterior
 log-probability with respect to those parameters.
@@ -28,9 +29,9 @@ parameters, or to solve smaller problems quickly and routinely.
 Easy interfacing to the Python scientific software ecosystem
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 MIDAS is designed to be used easily with external libraries, for example
-using optimisers from [`scipy.optimize`](https://docs.scipy.org/doc/scipy/reference/optimize.html)
+using optimisers from `scipy.optimize <https://docs.scipy.org/doc/scipy/reference/optimize.html>`_
 to maximise the posterior log-probability, or MCMC samplers from
-[`inference-tools`](https://github.com/C-bowman/inference-tools) to sample from the posterior.
+`inference-tools <https://github.com/C-bowman/inference-tools>`_ to sample from the posterior.
 
 Modularity to allow easy exchange of models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -54,7 +55,15 @@ but is completely independent of the specific choice of parametrisation for thos
    :caption: Contents:
 
    getting_started
-   adding_diagnostics
+   diagnostic_models
+   diagnostic_likelihood
    defining_priors
    choosing_field_models
-   state
+   build_posterior
+   parameters_module
+   models_module
+   fields_module
+   priors_module
+   likelihoods_module
+   state_module
+   posterior_module

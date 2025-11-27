@@ -10,12 +10,44 @@ class BasePrior(ABC):
     name: str
 
     @abstractmethod
-    def probability(self, **kwargs) -> float:
+    def probability(self, **parameters_and_fields: ndarray) -> float:
+        """
+        Calculate the prior log-probability.
+
+        :param parameters_and_fields: \
+            The parameter and field values requested via the ``ParameterVector`` and
+            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            instance variables.
+
+            The names of the unpacked keyword arguments correspond to the ``name``
+            attribute of the ``ParameterVector`` and ``FieldRequest`` objects, and
+            their values will be passed as 1D arrays.
+
+        :return: \
+            The prior log-probability value.
+        """
         pass
 
     @abstractmethod
-    def gradients(self, **kwargs) -> dict[str, ndarray]:
-        pass
+    def gradients(self, **parameters_and_fields: ndarray) -> dict[str, ndarray]:
+        """
+        Calculate the prior log-probability.
+
+        :param parameters_and_fields: \
+            The parameter and field values requested via the ``ParameterVector`` and
+            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            instance variables.
+
+            The names of the unpacked keyword arguments correspond to the ``name``
+            attribute of the ``ParameterVector`` and ``FieldRequest`` objects, and
+            their values will be passed as 1D arrays.
+
+        :return: \
+            The gradient of the prior log-probability with respect to the given
+            parameter and field values. These gradients are returned as a dictionary
+            mapping the parameter and field names to their respective gradients as
+            1D arrays.
+        """
 
     def log_probability(self) -> float:
         param_values, field_values = PlasmaState.get_values(

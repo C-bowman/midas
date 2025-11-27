@@ -4,6 +4,16 @@ from numpy import ndarray
 
 @dataclass
 class ParameterVector:
+    """
+    A class used for specifying the parameters required to evaluate a
+    diagnostic model, field model or prior distribution.
+
+    :param: name \
+        The name of the parameter(s).
+
+    :param size: \
+        The size of the parameter set.
+    """
     name: str
     size: int
 
@@ -16,6 +26,18 @@ class ParameterVector:
 
 @dataclass
 class FieldRequest:
+    """
+    A class used to request the values of particular fields which
+    are required to evaluate a diagnostic model or prior distribution.
+
+    :param name: \
+        The name of the field from which values are being requested.
+
+    :param coordinates: \
+        The coordinates at which the field values are being requested as
+        a dictionary mapping the coordinate names to 1D arrays of coordinate
+        values.
+    """
     name: str
     coordinates: dict[str, ndarray]
 

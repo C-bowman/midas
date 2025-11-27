@@ -1,5 +1,5 @@
-Defining the prior distribution
-===============================
+Constructing the posterior
+==========================
 
 .. attention::
    This section of the MIDAS documentation is still under construction!

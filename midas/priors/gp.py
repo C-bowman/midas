@@ -90,7 +90,7 @@ class GaussianProcessPrior(BasePrior):
             ]
         )
 
-    def probability(self, **kwargs):
+    def probability(self, **kwargs: ndarray) -> float:
         field_values = kwargs[self.target]
         K = self.cov.build_covariance(kwargs[self.cov_tag])
         mu = self.mean.build_mean(kwargs[self.mean_tag])
@@ -103,7 +103,7 @@ class GaussianProcessPrior(BasePrior):
             warn("Cholesky decomposition failure in marginal_likelihood")
             return -1e50
 
-    def gradients(self, **kwargs):
+    def gradients(self, **kwargs: ndarray) -> dict[str, ndarray]:
         K, grad_K = self.cov.covariance_and_gradients(kwargs[self.cov_tag])
         mu, grad_mu = self.mean.mean_and_gradients(kwargs[self.mean_tag])
 
