@@ -54,7 +54,8 @@ def test_straight_line_fit():
 
     PlasmaState.build_posterior(
         diagnostics=[line_likelihood],
-        priors=[]
+        priors=[],
+        field_models=[]
     )
 
     opt_result = minimize(

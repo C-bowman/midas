@@ -196,75 +196,43 @@ class PlasmaState:
     components: list[DiagnosticLikelihood | BasePrior]
 
     @classmethod
-    def specify_field_models(cls, field_models: list[FieldModel]):
-        """
-        A function for specifying the models used to represent each of the fields
-        in the analysis.
-
-        Each of the given field models must have a unique ``name`` attribute, such that
-        each field is associated with only one model.
-
-        When the parametrisation for the posterior distribution is built
-        (this occurs when ``PlasmaState.build_parametrisation`` is called), a check will
-        be performed to ensure the set of fields covered by the models provided here
-        matches the set of fields whose values have been requested by diagnostic
-        models and prior distributions.
-
-        :param field_models: \
-            A ``list`` of ``FieldModel`` objects, which represent all the fields
-            being modelled in the analysis.
-        """
-        # first check that the given models are valid:
-        valid_models = isinstance(field_models, Sequence) and all(
-            isinstance(model, FieldModel) for model in field_models
-        )
-        if not valid_models:
-            raise ValueError(
-                """
-                \r[ PlasmaState.specify_field_models error ]
-                \r>> Given 'field_models' must be a sequence of objects
-                \r>> whose types derive from the 'FieldModel' abstract base class.
-                """
-            )
-
-        # check that each model is for a unique field
-        unique_fields = len({f.name for f in field_models}) == len(field_models)
-        if not unique_fields:
-            raise ValueError(
-                """
-                \r[ PlasmaState.specify_field_models error ]
-                \r>> The given field models must each specify a unique field name.
-                """
-            )
-
-        cls.fields = {f.name: f for f in field_models}
-
-    @classmethod
     def build_posterior(
-        cls, diagnostics: list[DiagnosticLikelihood], priors: list[BasePrior]
+        cls,
+        diagnostics: list[DiagnosticLikelihood],
+        priors: list[BasePrior],
+        field_models: list[FieldModel],
     ):
         """
         Build the parametrisation for the posterior distribution by specifying the
-        likelihood and prior distributions of which it is comprised. Each of the given
-        components of the posterior are treated as independent, such that the posterior
-        log-probability is given by the sum of the component log-probabilities.
+        diagnostic likelihoods and prior distributions of which it is comprised,
+        and models for any fields whose values are requested by those components.
+
+        Each of the given components of the posterior are treated as independent, such
+        that the posterior log-probability is given by the sum of the component
+        log-probabilities.
 
         After this function has been called, the ``midas.posterior`` module can be used
         to evaluate the posterior log-probability and its gradient.
 
         :param diagnostics: \
-            A ``list`` containing instances of ``DiagnosticLikelihood`` representing
-            each diagnostic included in the analysis.
+            A ``list`` of ``DiagnosticLikelihood`` objects representing each diagnostic
+            included in the analysis.
 
         :param priors: \
             A ``list`` containing instances of prior distribution classes which inherit
             from ``BasePrior`` representing the various components which make up the
             overall prior distribution.
+
+        :param field_models: \
+            A ``list`` of ``FieldModel`` objects, which represent all the fields
+            being modelled in the analysis.
         """
         cls.__validate_diagnostics(diagnostics)
         cls.__validate_priors(priors)
+        cls.__validate_field_models(field_models)
 
         cls.components = [*diagnostics, *priors]
+        cls.fields = {f.name: f for f in field_models}
         # first gather all the fields that have been requested by the components
         requested_fields = set()
         [
@@ -594,3 +562,28 @@ class PlasmaState:
                     \r>> attributes must be non-empty.
                     """
                 )
+
+    @staticmethod
+    def __validate_field_models(field_models: list[FieldModel]):
+        # first check that the given models are valid:
+        valid_models = isinstance(field_models, Sequence) and all(
+            isinstance(model, FieldModel) for model in field_models
+        )
+        if not valid_models:
+            raise ValueError(
+                """
+                \r[ PlasmaState.build_posterior error ]
+                \r>> Given 'field_models' must be a sequence of objects
+                \r>> whose types derive from the 'FieldModel' abstract base class.
+                """
+            )
+
+        # check that each model is for a unique field
+        unique_fields = len({f.name for f in field_models}) == len(field_models)
+        if not unique_fields:
+            raise ValueError(
+                """
+                \r[ PlasmaState.build_posterior error ]
+                \r>> The given field models must each specify a unique field name.
+                """
+            )
