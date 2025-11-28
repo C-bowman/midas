@@ -6,7 +6,7 @@ from inference.gp.covariance import CovarianceFunction, SquaredExponential
 from inference.gp.mean import MeanFunction, ConstantMean
 
 from midas.parameters import ParameterVector, FieldRequest
-from midas.priors.base import BasePrior
+from midas.state import BasePrior
 
 
 class GaussianProcessPrior(BasePrior):

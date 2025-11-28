@@ -30,7 +30,7 @@ def test_gp_prior():
     )
 
     PlasmaState.specify_field_models([linear_field])
-    PlasmaState.build_parametrisation([gp_prior])
+    PlasmaState.build_posterior(diagnostics=[], priors=[gp_prior])
 
     # build some test parameters at which to evaluate the posterior
     param_dict = {

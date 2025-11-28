@@ -1,7 +1,6 @@
 from numpy import array, ndarray
 from collections import defaultdict
-from midas.likelihoods import DiagnosticLikelihood
-from midas.state import PlasmaState
+from midas.state import PlasmaState, DiagnosticLikelihood
 
 
 def log_probability(theta: ndarray) -> float:
