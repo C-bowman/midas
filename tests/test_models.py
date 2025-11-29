@@ -4,8 +4,8 @@ from scipy.optimize import minimize
 
 from midas.models import DiagnosticModel
 from midas.parameters import ParameterVector
-from midas.likelihoods import GaussianLikelihood, DiagnosticLikelihood
-from midas.state import PlasmaState
+from midas.likelihoods import GaussianLikelihood
+from midas.state import PlasmaState, DiagnosticLikelihood
 from midas import posterior
 
 
@@ -52,8 +52,10 @@ def test_straight_line_fit():
         name="straight_line"
     )
 
-    PlasmaState.build_parametrisation(
-        components=[line_likelihood]
+    PlasmaState.build_posterior(
+        diagnostics=[line_likelihood],
+        priors=[],
+        field_models=[]
     )
 
     opt_result = minimize(

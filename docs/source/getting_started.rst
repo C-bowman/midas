@@ -22,10 +22,8 @@ The high-level structure of a MIDAS analysis can be broken down as:
 * Create a :ref:`DiagnosticModel <DiagnosticModel-ref>` object for each diagnostic which is to be included in the
   analysis.
 * Specify the prior distribution (or its components) as ``BasePrior`` objects.
-* Specify models for the plasma fields in the analysis by calling the
-  ``PlasmaState.specify_field_models()`` function.
 * Build the parametrisation for the posterior distribution by calling the
-  ``PlasmaState.build_parametrisation()`` function.
+  ``PlasmaState.build_posterior()`` function.
 * Use the functions in the ``midas.posterior`` module to evaluate the posterior
   distribution, allowing for MAP estimation or sampling.
 
