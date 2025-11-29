@@ -8,4 +8,7 @@ Built-in prior distributions
    :members: probability, probability_gradient
 
 
+.. autoclass:: midas.priors.GaussianPrior
+
+
 .. autoclass:: midas.priors.GaussianProcessPrior
