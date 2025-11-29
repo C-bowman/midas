@@ -60,6 +60,7 @@ class DiagnosticLikelihood:
         likelihood: LikelihoodFunction,
         name: str,
     ):
+        self.__validate_diagnostic_model(diagnostic_model)
         self.forward_model = diagnostic_model
         self.likelihood = likelihood
         self.name = name
@@ -108,6 +109,55 @@ class DiagnosticLikelihood:
         )
 
         return self.forward_model.predictions(**param_values, **field_values)
+
+    @staticmethod
+    def __validate_diagnostic_model(diagnostic_model: DiagnosticModel):
+
+        if not isinstance(diagnostic_model, DiagnosticModel):
+            raise TypeError(
+                f"""\n
+                \r[ DiagnosticLikelihood error ]
+                \r>> The 'diagnostic_model' argument must be an instance of
+                \r>> ``DiagnosticModel``, but instead has type:
+                \r>> {type(diagnostic_model)}
+                """
+            )
+
+        valid_parameters = (
+            hasattr(diagnostic_model, "parameters")
+            and isinstance(diagnostic_model.parameters, Sequence)
+            and all(isinstance(p, ParameterVector) for p in diagnostic_model.parameters)
+        )
+        if not valid_parameters:
+            raise TypeError(
+                f"""\n
+                \r[ DiagnosticLikelihood error ]
+                \r>> The given 'diagnostic_model' does not posses a valid
+                \r>> 'parameters' instance attribute.
+                \r>>
+                \r>> 'parameters' must be a list containing only instances of the
+                \r>> ``ParameterVector`` class (or an empty list).
+                """
+            )
+
+        valid_field_requests = (
+            hasattr(diagnostic_model, "field_requests")
+            and isinstance(diagnostic_model.field_requests, Sequence)
+            and all(
+                isinstance(f, FieldRequest) for f in diagnostic_model.field_requests
+            )
+        )
+        if not valid_field_requests:
+            raise TypeError(
+                f"""\n
+                \r[ DiagnosticLikelihood error ]
+                \r>> The given 'diagnostic_model' does not posses a valid
+                \r>> 'field_requests' instance attribute.
+                \r>>
+                \r>> 'field_requests' must be a list containing only instances of
+                \r>> the ``FieldRequest`` class (or an empty list).
+                """
+            )
 
 
 class BasePrior(ABC):
