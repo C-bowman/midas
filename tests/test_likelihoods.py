@@ -39,7 +39,7 @@ def test_likelihoods_predictions_gradient(likelihood):
     sig = array([5., 5., 3.])
     func = likelihood(y, sig)
 
-    analytic_grad = func.predictions_derivative(predictions=test_values)
+    analytic_grad, _ = func.derivatives(predictions=test_values)
     numeric_grad = approx_fprime(f=func.log_likelihood, xk=test_values)
     max_abs_err = abs(analytic_grad - numeric_grad).max()
     assert max_abs_err < 1e-6

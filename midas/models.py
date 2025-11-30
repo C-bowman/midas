@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from numpy import ndarray
-from midas.parameters import FieldRequest, ParameterVector
+from midas.parameters import FieldRequest, FieldRequests, Parameters
 
 
 class DiagnosticModel(ABC):
     """
     An abstract base-class for diagnostic models.
     """
-    parameters: list[ParameterVector]
-    field_requests: list[FieldRequest]
+    parameters: Parameters
+    field_requests: FieldRequests
 
     @abstractmethod
     def predictions(self, **parameters_and_fields: ndarray) -> ndarray:
@@ -71,8 +71,8 @@ class LinearDiagnosticModel(DiagnosticModel):
         order to produce the model predictions.
     """
     def __init__(self, field: FieldRequest, model_matrix: ndarray):
-        self.parameters = []
-        self.field_requests = [field]
+        self.parameters = Parameters()
+        self.field_requests = FieldRequests(field)
         self.field_name = field.name
         self.A = model_matrix
         self.jacobian = {self.field_name: self.A}

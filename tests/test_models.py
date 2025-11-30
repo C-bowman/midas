@@ -3,7 +3,7 @@ from numpy.random import default_rng
 from scipy.optimize import minimize
 
 from midas.models import DiagnosticModel
-from midas.parameters import ParameterVector
+from midas.parameters import ParameterVector, Parameters, FieldRequests
 from midas.likelihoods import GaussianLikelihood
 from midas.state import PlasmaState, DiagnosticLikelihood
 from midas import posterior
@@ -20,8 +20,10 @@ def straight_line_data():
 class StraightLine(DiagnosticModel):
     def __init__(self, x_axis: ndarray):
         self.axis = x_axis
-        self.parameters = [ParameterVector(name="line_coefficients", size=2)]
-        self.field_requests = []
+        self.parameters = Parameters(
+            ParameterVector(name="line_coefficients", size=2)
+        )
+        self.field_requests = FieldRequests()
 
     def predictions(self, line_coefficients):
         grad, offset = line_coefficients

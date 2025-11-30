@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from numpy import ndarray, zeros, diff
-from midas.parameters import FieldRequest, ParameterVector
+from midas.parameters import FieldRequest, ParameterVector, Parameters
 
 
 class FieldModel(ABC):
@@ -9,7 +9,7 @@ class FieldModel(ABC):
     """
     n_params: int
     name: str
-    parameters: list[ParameterVector]
+    parameters: Parameters
 
     @abstractmethod
     def get_values(
@@ -89,7 +89,9 @@ class PiecewiseLinearField(FieldModel):
         self.axis_name = axis_name
         self.matrix_cache = {}
         self.param_name = f"{field_name}_linear_basis"
-        self.parameters = [ParameterVector(name=self.param_name, size=self.n_params)]
+        self.parameters = Parameters(
+            ParameterVector(name=self.param_name, size=self.n_params)
+        )
 
     def get_basis(self, field: FieldRequest) -> ndarray:
         if field in self.matrix_cache:
