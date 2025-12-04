@@ -1,3 +1,5 @@
+.. _priors-ref:
+
 Built-in prior distributions
 ============================
 

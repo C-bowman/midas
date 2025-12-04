@@ -74,6 +74,11 @@ class Parameters(tuple):
     objects. The arguments should be a series of ``ParameterVector``.
     """
     def __new__(cls, *parameters: ParameterVector):
+        """
+
+        :param parameters: \
+            A series of ``ParameterVector`` objects specifying the required parameters.
+        """
         parameter_names = set()
         for param in parameters:
             if not isinstance(param, ParameterVector):
@@ -108,6 +113,11 @@ class Fields(tuple):
     objects. The arguments should be a series of ``FieldRequest``.
     """
     def __new__(cls, *field_requests: FieldRequest):
+        """
+
+        :param field_requests: \
+            A series of ``FieldRequest`` objects specifying the requested fields.
+        """
         field_names = set()
         for request in field_requests:
             if not isinstance(request, FieldRequest):

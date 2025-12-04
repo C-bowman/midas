@@ -7,10 +7,10 @@ which inherit from the :ref:`FieldModel <FieldModel-ref>` abstract base-class.
 
 Like :ref:`DiagnosticModel <DiagnosticModel-ref>` objects, :ref:`FieldModel <FieldModel-ref>`
 object also specify their required parameters through a ``parameters`` instance attribute
-containing :ref:`ParameterVector <ParameterVector-ref>` objects.
+having type :ref:`Parameters <Parameters-ref>`.
 
 The model for a given field cannot depend on the values of another field however,
-so field models do not make use of :ref:`FieldRequest <FieldRequest-ref>` objects.
+so field models do not require a ``fields`` instance attribute.
 
 For example, if we could model the 1D profile of a field as a Gaussian function
 using the following field model:
@@ -19,7 +19,8 @@ using the following field model:
 .. code-block:: python
 
     from numpy import exp
-    from midas.fields import FieldModel
+    from midas.models import FieldModel
+    from midas import Parameters, ParameterVector
 
 
     class GaussianField(FieldModel):
@@ -33,11 +34,11 @@ using the following field model:
             self.centre = f"{field_name}_centre"
             self.width = f"{field_name}_width"
             # create the parameter set
-            self.parameters = [
+            self.parameters = Parameters(
                 ParameterVector(name=self.amplitude, size=1),
                 ParameterVector(name=self.centre, size=1),
                 ParameterVector(name=self.width, size=1),
-            ]
+            )
 
         def get_values(
             self, parameters: dict[str, ndarray], field: FieldRequest

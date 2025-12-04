@@ -9,7 +9,7 @@ Parameters and field requests
 .. _Parameters-ref:
 
 .. autoclass:: midas.Parameters
-
+   :members: __new__
 
 .. _FieldRequest-ref:
 
@@ -19,3 +19,4 @@ Parameters and field requests
 .. _Fields-ref:
 
 .. autoclass:: midas.Fields
+   :members: __new__

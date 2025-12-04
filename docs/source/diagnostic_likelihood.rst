@@ -32,38 +32,40 @@ Requesting field values
 For example, a model of a Thomson scattering diagnostic may require the values
 of both the electron temperature and density at a set of :math:`(R, z)` coordinates.
 To specify which field values are required by a diagnostic, we create instances of the
-:ref:`FieldRequest <FieldRequest-ref>` class:
+:ref:`FieldRequest <FieldRequest-ref>` class for each required field, and then pass
+those instances as arguments to the :ref:`Fields <Fields-ref>` class:
 
 .. code-block:: python
 
     from numpy import linspace, full
-    from midas import FieldRequest
+    from midas import FieldRequest, Fields
 
     # example measurement positions for a Thomson-scattering diagnostic
     R_ts = linspace(0.3, 1.6, 131)
     z_ts = full(131, fill_value=0.01)
 
     # Request the electron temperature and density field values at these positions
-    field_requests = [
+    fields = Fields(
         FieldRequest(name="T_e", coordinates={"radius": R_ts, "z": z_ts}),
         FieldRequest(name="n_e", coordinates={"radius": R_ts, "z": z_ts}),
-    ]
+    )
 
 Specifying required parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 'parameters' capture any other information required to evaluate the diagnostic model,
 but are typically used to specify properties of the instrument itself. The parameters
 required by a model are specified by creating instances of the
-:ref:`ParameterVector <ParameterVector-ref>` class:
+:ref:`ParameterVector <ParameterVector-ref>` class, which are then passed as arguments
+to the :ref:`Parameters <Parameters-ref>` class:
 
 .. code-block:: python
 
-    from midas import ParameterVector
+    from midas import Parameters, ParameterVector
 
-    parameters = [
+    parameters = Parameters(
         ParameterVector(name="calibration_value", size=1),
         ParameterVector(name="background_line_coeffs", size=2),
-    ]
+    )
 
 
 Defining a diagnostic
@@ -78,10 +80,10 @@ requirements:
   ``predictions_and_jacobians`` methods.
 
 * Instances of the class must have a `parameters` instance attribute, which is
-  a list containing :ref:`ParameterVector <ParameterVector-ref>` objects (or is empty).
+  an instance of the :ref:`Parameters <Parameters-ref>` class.
 
-* Instances of the class must have a `field_requests` instance attribute, which is
-  a list containing :ref:`FieldRequest <FieldRequest-ref>` objects (or is empty).
+* Instances of the class must have a `fields` instance attribute, which is
+  an instance of the :ref:`Fields <Fields-ref>` class.
 
 For example, a simple straight-line model would not require any field values,
 but would require parameters to define the gradient and offset:
@@ -91,16 +93,16 @@ but would require parameters to define the gradient and offset:
 
     from numpy import ndarray, ones_like
     from midas.models import DiagnosticModel
-
+    from midas import Parameters, ParameterVector, Fields
 
     class StraightLine(DiagnosticModel):
         def __init__(self, x_axis: ndarray):
             self.x = x_axis
-            self.parameters = [
+            self.parameters = Parameters(
                 ParameterVector(name="gradient", size=1),
                 ParameterVector(name="y_intercept", size=1),
-            ]
-            self.field_requests = []
+            )
+            self.fields = Fields()
 
         def predictions(self, gradient: float, y_intercept: float) -> ndarray:
             return gradient * self.x + y_intercept

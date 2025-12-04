@@ -1,3 +1,5 @@
+.. _posterior-ref:
+
 Evaluating the posterior
 ========================
 
