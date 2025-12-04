@@ -1,5 +1,6 @@
 from numpy import ndarray, log, exp, logaddexp, sqrt, pi, isfinite
 from midas.state import LikelihoodFunction, DiagnosticLikelihood
+from midas.parameters import Parameters
 
 
 class GaussianLikelihood(LikelihoodFunction):
@@ -16,6 +17,8 @@ class GaussianLikelihood(LikelihoodFunction):
     def __init__(self, y_data: ndarray, sigma: ndarray):
         self.y = y_data
         self.sigma = sigma
+        self.parameters = Parameters()
+        self.empty_derivatives = {}
 
         validate_likelihood_data(
             values=y_data, uncertainties=sigma, likelihood_name=self.__class__.__name__
@@ -26,12 +29,14 @@ class GaussianLikelihood(LikelihoodFunction):
         self.inv_sigma_sqr = self.inv_sigma**2
         self.normalisation = -log(self.sigma).sum() - 0.5 * log(2 * pi) * self.n_data
 
-    def log_likelihood(self, predictions: ndarray) -> float:
+    def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
         z = (self.y - predictions) * self.inv_sigma
         return -0.5 * (z**2).sum() + self.normalisation
 
-    def predictions_derivative(self, predictions: ndarray) -> ndarray:
-        return (self.y - predictions) * self.inv_sigma_sqr
+    def derivatives(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> tuple[ndarray, dict[str, ndarray]]:
+        return (self.y - predictions) * self.inv_sigma_sqr, self.empty_derivatives
 
 
 class LogisticLikelihood(LikelihoodFunction):
@@ -48,6 +53,8 @@ class LogisticLikelihood(LikelihoodFunction):
     def __init__(self, y_data: ndarray, sigma: ndarray):
         self.y = y_data
         self.sigma = sigma
+        self.parameters = Parameters()
+        self.empty_derivatives = {}
 
         validate_likelihood_data(
             values=y_data, uncertainties=sigma, likelihood_name=self.__class__.__name__
@@ -59,13 +66,15 @@ class LogisticLikelihood(LikelihoodFunction):
         self.inv_scale = 1.0 / self.scale
         self.normalisation = -log(self.scale).sum()
 
-    def log_likelihood(self, predictions: ndarray) -> float:
+    def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
         z = (self.y - predictions) * self.inv_scale
         return z.sum() - 2 * logaddexp(0.0, z).sum() + self.normalisation
 
-    def predictions_derivative(self, predictions: ndarray) -> ndarray:
+    def derivatives(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> tuple[ndarray, dict[str, ndarray]]:
         z = (self.y - predictions) * self.inv_scale
-        return (2 / (1 + exp(-z)) - 1) * self.inv_scale
+        return (2 / (1 + exp(-z)) - 1) * self.inv_scale, self.empty_derivatives
 
 
 class CauchyLikelihood(LikelihoodFunction):
@@ -82,6 +91,8 @@ class CauchyLikelihood(LikelihoodFunction):
     def __init__(self, y_data: ndarray, gamma: ndarray):
         self.y = y_data
         self.gamma = gamma
+        self.parameters = Parameters()
+        self.empty_derivatives = {}
 
         validate_likelihood_data(
             values=y_data, uncertainties=gamma, likelihood_name=self.__class__.__name__
@@ -92,13 +103,15 @@ class CauchyLikelihood(LikelihoodFunction):
         self.inv_gamma = 1.0 / self.gamma
         self.normalisation = -log(pi * self.gamma).sum()
 
-    def log_likelihood(self, predictions: ndarray) -> float:
+    def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
         z = (self.y - predictions) * self.inv_gamma
         return -log(1 + z**2).sum() + self.normalisation
 
-    def predictions_derivative(self, predictions: ndarray) -> ndarray:
+    def derivatives(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> tuple[ndarray, dict[str, ndarray]]:
         z = (self.y - predictions) * self.inv_gamma
-        return (2 * self.inv_gamma) * z / (1 + z**2)
+        return (2 * self.inv_gamma) * z / (1 + z**2), self.empty_derivatives
 
 
 def validate_likelihood_data(

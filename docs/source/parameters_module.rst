@@ -6,6 +6,17 @@ Parameters and field requests
 .. autoclass:: midas.ParameterVector
 
 
+.. _Parameters-ref:
+
+.. autoclass:: midas.Parameters
+   :members: __new__
+
 .. _FieldRequest-ref:
 
 .. autoclass:: midas.FieldRequest
+
+
+.. _Fields-ref:
+
+.. autoclass:: midas.Fields
+   :members: __new__

@@ -1,10 +1,10 @@
 Built-in field models
 =====================
 
-.. autoclass:: midas.fields.PiecewiseLinearField
+.. autoclass:: midas.models.PiecewiseLinearField
 
 
 .. _FieldModel-ref:
 
-.. autoclass:: midas.fields.FieldModel
+.. autoclass:: midas.models.FieldModel
    :members: get_values, get_values_and_jacobian

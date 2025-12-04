@@ -1,19 +1,20 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from itertools import chain
 from numpy import ndarray, zeros
-from midas.fields import FieldModel
+from midas.models.fields import FieldModel
 from midas.models import DiagnosticModel
-from midas.parameters import ParameterVector, FieldRequest
+from midas.parameters import ParameterVector, Parameters, Fields
+from midas.parameters import validate_parameters, validate_field_requests
 
 
 class LikelihoodFunction(ABC):
     """
     An abstract base-class for likelihood function.
     """
+    parameters: Parameters
 
     @abstractmethod
-    def log_likelihood(self, predictions: ndarray) -> float:
+    def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
         """
         :param predictions: \
             The model predictions of the measured data as a 1D array.
@@ -24,7 +25,9 @@ class LikelihoodFunction(ABC):
         pass
 
     @abstractmethod
-    def predictions_derivative(self, predictions: ndarray) -> ndarray:
+    def derivatives(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> ndarray:
         """
         :param predictions: \
             The model predictions of the measured data as a 1D array.
@@ -64,22 +67,22 @@ class DiagnosticLikelihood:
         self.forward_model = diagnostic_model
         self.likelihood = likelihood
         self.name = name
-        self.field_requests = self.forward_model.field_requests
-        self.parameters = self.forward_model.parameters
+        self.fields = self.forward_model.fields
+        self.model_parameters = self.forward_model.parameters
+        self.likelihood_parameters = self.likelihood.parameters
 
     def log_probability(self) -> float:
         param_values, field_values = PlasmaState.get_values(
-            parameters=self.parameters, field_requests=self.field_requests
+            parameters=self.model_parameters, fields=self.fields
         )
 
         predictions = self.forward_model.predictions(**param_values, **field_values)
-
         return self.likelihood.log_likelihood(predictions)
 
     def log_probability_gradient(self) -> ndarray:
         param_values, field_values, field_jacobians = (
             PlasmaState.get_values_and_jacobians(
-                parameters=self.parameters, field_requests=self.field_requests
+                parameters=self.model_parameters, fields=self.fields
             )
         )
 
@@ -87,25 +90,32 @@ class DiagnosticLikelihood:
             **param_values, **field_values
         )
 
-        dL_dp = self.likelihood.predictions_derivative(predictions)
+        likelihood_param_values = PlasmaState.get_parameter_values(
+            self.likelihood_parameters
+        )
+        dL_dp, likelihood_gradients = self.likelihood.derivatives(
+            predictions, **likelihood_param_values
+        )
 
         grad = zeros(PlasmaState.n_params)
-        for p in param_values.keys():
-            slc = PlasmaState.slices[p]
-            grad[slc] = dL_dp @ model_jacobians[p]
+        for param_name, likelihood_grad in likelihood_gradients.items():
+            slc = PlasmaState.slices[param_name]
+            grad[slc] = likelihood_grad
 
-        for field_param in field_jacobians.keys():
+        for param_name, jacobian in model_jacobians.items():
+            slc = PlasmaState.slices[param_name]
+            grad[slc] = dL_dp @ jacobian
+
+        for field_param, field_jacobian in field_jacobians.items():
             field_name = PlasmaState.field_parameter_map[field_param]
             slc = PlasmaState.slices[field_param]
-            grad[slc] = (dL_dp @ model_jacobians[field_name]) @ field_jacobians[
-                field_param
-            ]
+            grad[slc] = (dL_dp @ model_jacobians[field_name]) @ field_jacobian
 
         return grad
 
     def get_predictions(self):
         param_values, field_values = PlasmaState.get_values(
-            parameters=self.parameters, field_requests=self.field_requests
+            parameters=self.model_parameters, fields=self.fields
         )
 
         return self.forward_model.predictions(**param_values, **field_values)
@@ -123,46 +133,15 @@ class DiagnosticLikelihood:
                 """
             )
 
-        valid_parameters = (
-            hasattr(diagnostic_model, "parameters")
-            and isinstance(diagnostic_model.parameters, Sequence)
-            and all(isinstance(p, ParameterVector) for p in diagnostic_model.parameters)
-        )
-        if not valid_parameters:
-            raise TypeError(
-                f"""\n
-                \r[ DiagnosticLikelihood error ]
-                \r>> The given 'diagnostic_model' does not posses a valid
-                \r>> 'parameters' instance attribute.
-                \r>>
-                \r>> 'parameters' must be a list containing only instances of the
-                \r>> ``ParameterVector`` class (or an empty list).
-                """
-            )
-
-        valid_field_requests = (
-            hasattr(diagnostic_model, "field_requests")
-            and isinstance(diagnostic_model.field_requests, Sequence)
-            and all(
-                isinstance(f, FieldRequest) for f in diagnostic_model.field_requests
-            )
-        )
-        if not valid_field_requests:
-            raise TypeError(
-                f"""\n
-                \r[ DiagnosticLikelihood error ]
-                \r>> The given 'diagnostic_model' does not posses a valid
-                \r>> 'field_requests' instance attribute.
-                \r>>
-                \r>> 'field_requests' must be a list containing only instances of
-                \r>> the ``FieldRequest`` class (or an empty list).
-                """
-            )
+        error_source = "DiagnosticLikelihood"
+        description = "given 'diagnostic_model'"
+        validate_parameters(diagnostic_model, error_source, description)
+        validate_field_requests(diagnostic_model, error_source, description)
 
 
 class BasePrior(ABC):
-    parameters: list[ParameterVector]
-    field_requests: list[FieldRequest]
+    parameters: Parameters
+    fields: Fields
     name: str
 
     @abstractmethod
@@ -172,7 +151,7 @@ class BasePrior(ABC):
 
         :param parameters_and_fields: \
             The parameter and field values requested via the ``ParameterVector`` and
-            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            ``FieldRequest`` objects stored in ``parameters`` and ``fields``
             instance variables.
 
             The names of the unpacked keyword arguments correspond to the ``name``
@@ -207,7 +186,7 @@ class BasePrior(ABC):
 
     def log_probability(self) -> float:
         param_values, field_values = PlasmaState.get_values(
-            parameters=self.parameters, field_requests=self.field_requests
+            parameters=self.parameters, fields=self.fields
         )
 
         return self.probability(**param_values, **field_values)
@@ -215,7 +194,7 @@ class BasePrior(ABC):
     def log_probability_gradient(self) -> ndarray:
         param_values, field_values, field_jacobians = (
             PlasmaState.get_values_and_jacobians(
-                parameters=self.parameters, field_requests=self.field_requests
+                parameters=self.parameters, fields=self.fields
             )
         )
 
@@ -241,7 +220,7 @@ class PlasmaState:
     parameter_names: set[str]
     parameter_sizes: dict[str, int]
     slices: dict[str, slice] = {}
-    fields: dict[str, FieldModel] = {}
+    field_models: dict[str, FieldModel] = {}
     field_parameter_map: dict[str, str]
     components: list[DiagnosticLikelihood | BasePrior]
 
@@ -282,17 +261,17 @@ class PlasmaState:
         cls.__validate_field_models(field_models)
 
         cls.components = [*diagnostics, *priors]
-        cls.fields = {f.name: f for f in field_models}
+        cls.field_models = {f.name: f for f in field_models}
         # first gather all the fields that have been requested by the components
         requested_fields = set()
         [
-            [requested_fields.add(f.name) for f in c.field_requests]
+            [requested_fields.add(f.name) for f in c.fields]
             for c in cls.components
         ]
 
         # If fields have been requested, but no field models have been specified,
         # tell the user how to specify them
-        modelled_fields = {f for f in cls.fields.keys()}
+        modelled_fields = {f for f in cls.field_models.keys()}
         if len(modelled_fields) == 0 and len(requested_fields) > 0:
             raise ValueError(
                 f"""\n
@@ -323,27 +302,33 @@ class PlasmaState:
         # Build a map between the names of parameter vectors of field models,
         # and the names of their parent fields:
         cls.field_parameter_map = {}
-        for field_name, field_model in cls.fields.items():
+        for field_name, field_model in cls.field_models.items():
             cls.field_parameter_map.update(
                 {param.name: field_name for param in field_model.parameters}
             )
 
-        # Collect the sizes of all unique ParameterVector objects in the analysis
+        # Gather all the ParameterVector object in the analysis
+        all_parameters = []
+        [all_parameters.extend(d.model_parameters) for d in diagnostics]
+        [all_parameters.extend(d.likelihood_parameters) for d in diagnostics]
+        [all_parameters.extend(p.parameters) for p in priors]
+        [all_parameters.extend(f.parameters) for f in field_models]
+
+        # get the sizes of all unique ParameterVectors
         parameter_sizes = {}
-        for f in chain(cls.components, cls.fields.values()):
-            for p in f.parameters:
-                assert isinstance(p, ParameterVector)
-                if p.name not in parameter_sizes:
-                    parameter_sizes[p.name] = p.size
-                elif parameter_sizes[p.name] != p.size:
-                    raise ValueError(
-                        f"""\n
-                        \r[ PlasmaState.build_posterior error ]
-                        \r>> Two instances of 'ParameterVector' have matching names '{p.name}'
-                        \r>> but differ in their size:
-                        \r>> sizes are '{p.size}' and '{parameter_sizes[p.name]}'
-                        """
-                    )
+        for p in all_parameters:
+            assert isinstance(p, ParameterVector)
+            if p.name not in parameter_sizes:
+                parameter_sizes[p.name] = p.size
+            elif parameter_sizes[p.name] != p.size:
+                raise ValueError(
+                    f"""\n
+                    \r[ PlasmaState.build_posterior error ]
+                    \r>> Two instances of 'ParameterVector' have matching names '{p.name}'
+                    \r>> but differ in their size:
+                    \r>> sizes are '{p.size}' and '{parameter_sizes[p.name]}'
+                    """
+                )
 
         # sort the parameter sizes by name
         slice_sizes = sorted([t for t in parameter_sizes.items()], key=lambda x: x[0])
@@ -449,30 +434,30 @@ class PlasmaState:
         return theta
 
     @classmethod
-    def get_parameter_values(cls, parameters: list[ParameterVector]):
+    def get_parameter_values(cls, parameters: Parameters):
         return {p.name: cls.theta[cls.slices[p.name]] for p in parameters}
 
     @classmethod
     def get_values(
-        cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]
+        cls, parameters: Parameters, fields: Fields
     ):
         param_values = cls.get_parameter_values(parameters)
         field_values = {}
-        for f in field_requests:
-            field_model = cls.fields[f.name]
+        for f in fields:
+            field_model = cls.field_models[f.name]
             field_params = cls.get_parameter_values(field_model.parameters)
             field_values[f.name] = field_model.get_values(field_params, f)
         return param_values, field_values
 
     @classmethod
     def get_values_and_jacobians(
-        cls, parameters: list[ParameterVector], field_requests: list[FieldRequest]
+        cls, parameters: Parameters, fields: Fields
     ):
         param_values = cls.get_parameter_values(parameters)
         field_values = {}
         field_param_jacobians = {}
-        for f in field_requests:
-            field_model = cls.fields[f.name]
+        for f in fields:
+            field_model = cls.field_models[f.name]
             field_params = cls.get_parameter_values(field_model.parameters)
             values, jacobians = field_model.get_values_and_jacobian(field_params, f)
 
@@ -531,84 +516,19 @@ class PlasmaState:
                     """
                 )
 
-            valid_parameters = (
-                hasattr(prior, "parameters")
-                and isinstance(prior.parameters, Sequence)
-                and all(isinstance(p, ParameterVector) for p in prior.parameters)
-            )
-            if not valid_parameters:
-                raise TypeError(
-                    f"""\n
-                    \r[ PlasmaState.build_posterior error ]
-                    \r>> The prior object at index {index} of the 'priors' argument
-                    \r>> does not possess a valid 'parameters' instance attribute.
-                    \r>>
-                    \r>> 'parameters' must be a list containing only instances of the
-                    \r>> ``ParameterVector`` class (or an empty list).
-                    """
-                )
+            description = f"prior object at index {index} of the 'priors' argument"
+            error_source = "PlasmaState.build_posterior"
+            validate_parameters(prior, error_source, description)
+            validate_field_requests(prior, error_source, description)
 
-            # check that all the parameter names in the current prior are unique
-            parameter_names = set()
-            for p in prior.parameters:
-                if p.name not in parameter_names:
-                    parameter_names.add(p.name)
-                else:
-                    raise TypeError(
-                        f"""\n
-                        \r[ PlasmaState.build_posterior error ]
-                        \r>> The prior object at index {index} of the 'priors' argument
-                        \r>> does not possess a valid 'parameters' instance attribute.
-                        \r>>
-                        \r>> At least two ``ParameterVector`` objects share the name:
-                        \r>> '{p.name}'
-                        \r>> but all names must be unique.
-                        """
-                    )
-
-            valid_field_requests = (
-                hasattr(prior, "field_requests")
-                and isinstance(prior.field_requests, Sequence)
-                and all(isinstance(f, FieldRequest) for f in prior.field_requests)
-            )
-            if not valid_field_requests:
-                raise TypeError(
-                    f"""\n
-                    \r[ PlasmaState.build_posterior error ]
-                    \r>> The prior object at index {index} of the 'priors' argument
-                    \r>> does not possess a valid 'field_requests' instance attribute.
-                    \r>>
-                    \r>> 'field_requests' must be a list containing only instances of
-                    \r>> the ``FieldRequest`` class (or an empty list).
-                    """
-                )
-
-            # check that all the requested fields in the current prior are unique
-            field_names = set()
-            for f in prior.field_requests:
-                if f.name not in field_names:
-                    field_names.add(f.name)
-                else:
-                    raise TypeError(
-                        f"""\n
-                        \r[ PlasmaState.build_posterior error ]
-                        \r>> The prior object at index {index} of the 'priors' argument
-                        \r>> does not possess a valid 'field_requests' instance attribute.
-                        \r>>
-                        \r>> At least two ``FieldRequest`` objects request the same field:
-                        \r>> '{f.name}'
-                        \r>> but all ``FieldRequest`` objects must request unique fields.
-                        """
-                    )
-
-            if len(prior.parameters) == 0 and len(prior.field_requests) == 0:
+            if len(prior.parameters) == 0 and len(prior.fields) == 0:
                 raise ValueError(
                     f"""
                     \r[ PlasmaState.build_posterior error ]
                     \r>> The prior object at index {index} of the 'priors' argument
                     \r>> has no specified field requests or parameters.
                     \r>>
-                    \r>> At least one of the 'parameters' or 'field_requests' instance
+                    \r>> At least one of the 'parameters' or 'fields' instance
                     \r>> attributes must be non-empty.
                     """
                 )

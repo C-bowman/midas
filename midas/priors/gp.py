@@ -6,6 +6,7 @@ from inference.gp.covariance import CovarianceFunction, SquaredExponential
 from inference.gp.mean import MeanFunction, ConstantMean
 
 from midas.parameters import ParameterVector, FieldRequest
+from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
 
 
@@ -50,18 +51,18 @@ class GaussianProcessPrior(BasePrior):
         self.mean = mean
         self.name = name
 
-        if field_positions is not None:
+        if isinstance(field_positions, FieldRequest):
             self.target = field_positions.name
             spatial_data = array([v for v in field_positions.coordinates.values()]).T
-            self.field_requests = [field_positions]
-            self.parameters = []
+            self.fields = Fields(field_positions)
+            target_parameters = []
             self.I = eye(field_positions.size)
 
-        elif parameter_coordinates is not None and parameters is not None:
+        elif isinstance(parameters, ParameterVector) and isinstance(parameter_coordinates, dict):
             self.target = parameters.name
             spatial_data = array([v for v in parameter_coordinates.values()]).T
-            self.field_requests = []
-            self.parameters = [parameters]
+            self.fields = Fields()
+            target_parameters = [parameters]
             self.I = eye(parameters.size)
 
         else:
@@ -83,11 +84,10 @@ class GaussianProcessPrior(BasePrior):
             self.mean_tag: self.mean.hyperpar_labels
         }
 
-        self.parameters.extend(
-            [
-                ParameterVector(name=self.cov_tag, size=self.cov.n_params),
-                ParameterVector(name=self.mean_tag, size=self.mean.n_params),
-            ]
+        self.parameters = Parameters(
+            ParameterVector(name=self.cov_tag, size=self.cov.n_params),
+            ParameterVector(name=self.mean_tag, size=self.mean.n_params),
+            *target_parameters
         )
 
     def probability(self, **kwargs: ndarray) -> float:
