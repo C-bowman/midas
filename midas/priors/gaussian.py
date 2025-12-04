@@ -1,6 +1,6 @@
 from numpy import ndarray, atleast_1d
 from midas.parameters import ParameterVector, FieldRequest
-from midas.parameters import Parameters, FieldRequests
+from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
 
 
@@ -48,13 +48,13 @@ class GaussianPrior(BasePrior):
         if isinstance(field_positions, FieldRequest):
             self.target = field_positions.name
             self.n_targets = field_positions.size
-            self.field_requests = FieldRequests(field_positions)
+            self.fields = Fields(field_positions)
             self.parameters = Parameters()
 
         elif isinstance(parameter_vector, ParameterVector):
             self.target = parameter_vector.name
             self.n_targets = parameter_vector.size
-            self.field_requests = FieldRequests()
+            self.fields = Fields()
             self.parameters = Parameters(parameter_vector)
 
         else:

@@ -69,6 +69,10 @@ class FieldRequest:
 
 
 class Parameters(tuple):
+    """
+    A tuple subclass which creates an immutable collection of validated ``ParameterVector``
+    objects. The arguments should be a series of ``ParameterVector``.
+    """
     def __new__(cls, *parameters: ParameterVector):
         parameter_names = set()
         for param in parameters:
@@ -98,7 +102,11 @@ class Parameters(tuple):
         return tuple.__new__(cls, parameters)
 
 
-class FieldRequests(tuple):
+class Fields(tuple):
+    """
+    A tuple subclass which creates an immutable collection of validated ``FieldRequest``
+    objects. The arguments should be a series of ``FieldRequest``.
+    """
     def __new__(cls, *field_requests: FieldRequest):
         field_names = set()
         for request in field_requests:
@@ -145,15 +153,15 @@ def validate_parameters(model, error_source: str, description: str):
 
 def validate_field_requests(model, error_source: str, description: str):
     valid_field_requests = (
-        hasattr(model, "field_requests")
-        and isinstance(model.field_requests, FieldRequests)
+        hasattr(model, "fields")
+        and isinstance(model.fields, Fields)
     )
     if not valid_field_requests:
         raise TypeError(
             f"""\n
             \r[ {error_source} error ]
             \r>> The {description}
-            \r>> does not possess a valid 'field_requests' instance attribute.
-            \r>> 'field_requests' must be a instance of the ``FieldRequests`` class.
+            \r>> does not possess a valid 'fields' instance attribute.
+            \r>> 'fields' must be a instance of the ``Fields`` class.
             """
         )

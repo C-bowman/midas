@@ -4,7 +4,7 @@ from numpy import ndarray, zeros
 from midas.fields import FieldModel
 from midas.models import DiagnosticModel
 from midas.parameters import ParameterVector, FieldRequest
-from midas.parameters import Parameters, FieldRequests
+from midas.parameters import Parameters, Fields
 from midas.parameters import validate_parameters, validate_field_requests
 
 
@@ -68,13 +68,13 @@ class DiagnosticLikelihood:
         self.forward_model = diagnostic_model
         self.likelihood = likelihood
         self.name = name
-        self.field_requests = self.forward_model.field_requests
+        self.fields = self.forward_model.fields
         self.model_parameters = self.forward_model.parameters
         self.likelihood_parameters = self.likelihood.parameters
 
     def log_probability(self) -> float:
         param_values, field_values = PlasmaState.get_values(
-            parameters=self.model_parameters, field_requests=self.field_requests
+            parameters=self.model_parameters, fields=self.fields
         )
 
         predictions = self.forward_model.predictions(**param_values, **field_values)
@@ -83,7 +83,7 @@ class DiagnosticLikelihood:
     def log_probability_gradient(self) -> ndarray:
         param_values, field_values, field_jacobians = (
             PlasmaState.get_values_and_jacobians(
-                parameters=self.model_parameters, field_requests=self.field_requests
+                parameters=self.model_parameters, fields=self.fields
             )
         )
 
@@ -116,7 +116,7 @@ class DiagnosticLikelihood:
 
     def get_predictions(self):
         param_values, field_values = PlasmaState.get_values(
-            parameters=self.model_parameters, field_requests=self.field_requests
+            parameters=self.model_parameters, fields=self.fields
         )
 
         return self.forward_model.predictions(**param_values, **field_values)
@@ -142,7 +142,7 @@ class DiagnosticLikelihood:
 
 class BasePrior(ABC):
     parameters: Parameters
-    field_requests: FieldRequests
+    fields: Fields
     name: str
 
     @abstractmethod
@@ -152,7 +152,7 @@ class BasePrior(ABC):
 
         :param parameters_and_fields: \
             The parameter and field values requested via the ``ParameterVector`` and
-            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            ``FieldRequest`` objects stored in ``parameters`` and ``fields``
             instance variables.
 
             The names of the unpacked keyword arguments correspond to the ``name``
@@ -187,7 +187,7 @@ class BasePrior(ABC):
 
     def log_probability(self) -> float:
         param_values, field_values = PlasmaState.get_values(
-            parameters=self.parameters, field_requests=self.field_requests
+            parameters=self.parameters, fields=self.fields
         )
 
         return self.probability(**param_values, **field_values)
@@ -195,7 +195,7 @@ class BasePrior(ABC):
     def log_probability_gradient(self) -> ndarray:
         param_values, field_values, field_jacobians = (
             PlasmaState.get_values_and_jacobians(
-                parameters=self.parameters, field_requests=self.field_requests
+                parameters=self.parameters, fields=self.fields
             )
         )
 
@@ -221,7 +221,7 @@ class PlasmaState:
     parameter_names: set[str]
     parameter_sizes: dict[str, int]
     slices: dict[str, slice] = {}
-    fields: dict[str, FieldModel] = {}
+    field_models: dict[str, FieldModel] = {}
     field_parameter_map: dict[str, str]
     components: list[DiagnosticLikelihood | BasePrior]
 
@@ -262,17 +262,17 @@ class PlasmaState:
         cls.__validate_field_models(field_models)
 
         cls.components = [*diagnostics, *priors]
-        cls.fields = {f.name: f for f in field_models}
+        cls.field_models = {f.name: f for f in field_models}
         # first gather all the fields that have been requested by the components
         requested_fields = set()
         [
-            [requested_fields.add(f.name) for f in c.field_requests]
+            [requested_fields.add(f.name) for f in c.fields]
             for c in cls.components
         ]
 
         # If fields have been requested, but no field models have been specified,
         # tell the user how to specify them
-        modelled_fields = {f for f in cls.fields.keys()}
+        modelled_fields = {f for f in cls.field_models.keys()}
         if len(modelled_fields) == 0 and len(requested_fields) > 0:
             raise ValueError(
                 f"""\n
@@ -303,7 +303,7 @@ class PlasmaState:
         # Build a map between the names of parameter vectors of field models,
         # and the names of their parent fields:
         cls.field_parameter_map = {}
-        for field_name, field_model in cls.fields.items():
+        for field_name, field_model in cls.field_models.items():
             cls.field_parameter_map.update(
                 {param.name: field_name for param in field_model.parameters}
             )
@@ -440,25 +440,25 @@ class PlasmaState:
 
     @classmethod
     def get_values(
-        cls, parameters: Parameters, field_requests: FieldRequests
+        cls, parameters: Parameters, fields: Fields
     ):
         param_values = cls.get_parameter_values(parameters)
         field_values = {}
-        for f in field_requests:
-            field_model = cls.fields[f.name]
+        for f in fields:
+            field_model = cls.field_models[f.name]
             field_params = cls.get_parameter_values(field_model.parameters)
             field_values[f.name] = field_model.get_values(field_params, f)
         return param_values, field_values
 
     @classmethod
     def get_values_and_jacobians(
-        cls, parameters: Parameters, field_requests: FieldRequests
+        cls, parameters: Parameters, fields: Fields
     ):
         param_values = cls.get_parameter_values(parameters)
         field_values = {}
         field_param_jacobians = {}
-        for f in field_requests:
-            field_model = cls.fields[f.name]
+        for f in fields:
+            field_model = cls.field_models[f.name]
             field_params = cls.get_parameter_values(field_model.parameters)
             values, jacobians = field_model.get_values_and_jacobian(field_params, f)
 
@@ -522,14 +522,14 @@ class PlasmaState:
             validate_parameters(prior, error_source, description)
             validate_field_requests(prior, error_source, description)
 
-            if len(prior.parameters) == 0 and len(prior.field_requests) == 0:
+            if len(prior.parameters) == 0 and len(prior.fields) == 0:
                 raise ValueError(
                     f"""
                     \r[ PlasmaState.build_posterior error ]
                     \r>> The prior object at index {index} of the 'priors' argument
                     \r>> has no specified field requests or parameters.
                     \r>>
-                    \r>> At least one of the 'parameters' or 'field_requests' instance
+                    \r>> At least one of the 'parameters' or 'fields' instance
                     \r>> attributes must be non-empty.
                     """
                 )

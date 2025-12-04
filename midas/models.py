@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from numpy import ndarray
-from midas.parameters import FieldRequest, FieldRequests, Parameters
+from midas.parameters import FieldRequest, Fields, Parameters
 
 
 class DiagnosticModel(ABC):
@@ -8,7 +8,7 @@ class DiagnosticModel(ABC):
     An abstract base-class for diagnostic models.
     """
     parameters: Parameters
-    field_requests: FieldRequests
+    fields: Fields
 
     @abstractmethod
     def predictions(self, **parameters_and_fields: ndarray) -> ndarray:
@@ -17,7 +17,7 @@ class DiagnosticModel(ABC):
 
         :param parameters_and_fields: \
             The parameter and field values requested via the ``ParameterVector`` and
-            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            ``FieldRequest`` objects stored in ``parameters`` and ``fields``
             instance variables.
 
             The names of the unpacked keyword arguments correspond to the ``name``
@@ -72,7 +72,7 @@ class LinearDiagnosticModel(DiagnosticModel):
     """
     def __init__(self, field: FieldRequest, model_matrix: ndarray):
         self.parameters = Parameters()
-        self.field_requests = FieldRequests(field)
+        self.fields = Fields(field)
         self.field_name = field.name
         self.A = model_matrix
         self.jacobian = {self.field_name: self.A}

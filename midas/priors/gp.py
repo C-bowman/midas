@@ -6,7 +6,7 @@ from inference.gp.covariance import CovarianceFunction, SquaredExponential
 from inference.gp.mean import MeanFunction, ConstantMean
 
 from midas.parameters import ParameterVector, FieldRequest
-from midas.parameters import Parameters, FieldRequests
+from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
 
 
@@ -54,14 +54,14 @@ class GaussianProcessPrior(BasePrior):
         if isinstance(field_positions, FieldRequest):
             self.target = field_positions.name
             spatial_data = array([v for v in field_positions.coordinates.values()]).T
-            self.field_requests = FieldRequests(field_positions)
+            self.fields = Fields(field_positions)
             target_parameters = []
             self.I = eye(field_positions.size)
 
         elif isinstance(parameters, ParameterVector) and isinstance(parameter_coordinates, dict):
             self.target = parameters.name
             spatial_data = array([v for v in parameter_coordinates.values()]).T
-            self.field_requests = FieldRequests()
+            self.fields = Fields()
             target_parameters = [parameters]
             self.I = eye(parameters.size)
 
