@@ -4,7 +4,7 @@ from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
 from midas.priors import GaussianProcessPrior, GaussianPrior
-from midas.fields import PiecewiseLinearField, FieldRequest
+from midas.models.fields import PiecewiseLinearField, FieldRequest
 from midas.state import PlasmaState
 from midas import posterior
 

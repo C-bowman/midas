@@ -1,6 +1,6 @@
 from numpy import linspace, allclose
 from numpy.random import default_rng
-from midas.fields import PiecewiseLinearField
+from midas.models.fields import PiecewiseLinearField
 from midas.parameters import FieldRequest
 
 

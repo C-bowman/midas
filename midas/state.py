@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from numpy import ndarray, zeros
-from midas.fields import FieldModel
+from midas.models.fields import FieldModel
 from midas.models import DiagnosticModel
-from midas.parameters import ParameterVector, FieldRequest
-from midas.parameters import Parameters, Fields
+from midas.parameters import ParameterVector, Parameters, Fields
 from midas.parameters import validate_parameters, validate_field_requests
 
 

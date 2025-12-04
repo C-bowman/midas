@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+
 from numpy import ndarray
-from midas.parameters import FieldRequest, Fields, Parameters
+
+from midas import Parameters, Fields, FieldRequest
 
 
 class DiagnosticModel(ABC):
