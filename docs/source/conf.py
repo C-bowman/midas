@@ -25,9 +25,9 @@ copyright = '2024, Chris Bowman'
 author = 'Chris Bowman'
 
 # The full version, including alpha/beta/rc tags
-release = "0.2.0"
+release = "0.2.1"
 # Major.minor version
-version = "0.2.0"
+version = "0.2.1"
 
 # -- General configuration ---------------------------------------------------
 
