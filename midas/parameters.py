@@ -73,15 +73,22 @@ class Parameters(tuple):
     A tuple subclass which creates an immutable collection of validated ``ParameterVector``
     objects. The arguments should be a series of ``ParameterVector``.
     """
-    def __new__(cls, *parameters: ParameterVector):
+    def __new__(cls, *parameters: ParameterVector | tuple[str, int]):
         """
 
         :param parameters: \
             A series of ``ParameterVector`` objects specifying the required parameters.
+            Alternatively, a series of tuples containing the parameter name as a string
+            followed by the parameter vector size as an integer.
         """
+        validated = []
         parameter_names = set()
         for param in parameters:
-            if not isinstance(param, ParameterVector):
+            if isinstance(param, ParameterVector):
+                vector = param
+            elif isinstance(param, tuple) and len(param) == 2:
+                vector = ParameterVector(*param)
+            else:
                 raise TypeError(
                     f"""\n
                     \r[ Parameters error ]
@@ -92,19 +99,20 @@ class Parameters(tuple):
                 )
 
             # check that all the parameter names in the current prior are unique
-            if param.name not in parameter_names:
-                parameter_names.add(param.name)
+            if vector.name not in parameter_names:
+                parameter_names.add(vector.name)
             else:
                 raise ValueError(
                     f"""\n
                     \r[ Parameters error ]
                     \r>> At least two given ``ParameterVector`` objects share the name:
-                    \r>> '{param.name}'
+                    \r>> '{vector.name}'
                     \r>> but all names must be unique.
                     """
                 )
+            validated.append(vector)
 
-        return tuple.__new__(cls, parameters)
+        return tuple.__new__(cls, validated)
 
 
 class Fields(tuple):
