@@ -220,7 +220,8 @@ class PlasmaState:
     theta: ndarray
     radius: ndarray
     n_params: int
-    parameter_names: set[str]
+    parameter_names: tuple[str, ...]
+    parameter_set: set[str]
     parameter_sizes: dict[str, int]
     slices: dict[str, slice] = {}
     field_models: dict[str, FieldModel] = {}
@@ -349,8 +350,9 @@ class PlasmaState:
         # convert to a dictionary which maps parameter names to corresponding
         # slices of the parameter vector
         cls.slices = dict(slices)
-        cls.parameter_names = {name for name in cls.slices.keys()}
+        cls.parameter_set = {name for name in cls.slices.keys()}
         cls.parameter_sizes = {name: s.stop - s.start for name, s in cls.slices.items()}
+        cls.parameter_names = tuple([name for name in cls.slices.keys()])
 
     @classmethod
     def split_parameters(cls, theta: ndarray) -> dict[str, ndarray]:
@@ -421,7 +423,7 @@ class PlasmaState:
         """
         theta = zeros(cls.n_params)
 
-        missing_params = cls.parameter_names - {k for k in parameter_values.keys()}
+        missing_params = cls.parameter_set - {k for k in parameter_values.keys()}
         if len(missing_params) > 0:
             raise ValueError(
                 f"""\n
@@ -456,7 +458,7 @@ class PlasmaState:
         """
         bounds = zeros([cls.n_params, 2])
 
-        missing_params = cls.parameter_names - {k for k in parameter_bounds.keys()}
+        missing_params = cls.parameter_set - {k for k in parameter_bounds.keys()}
         if len(missing_params) > 0:
             raise ValueError(
                 f"""\n
