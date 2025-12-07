@@ -22,7 +22,7 @@ The high-level structure of a MIDAS analysis can be broken down as:
 * Create a :ref:`DiagnosticModel <DiagnosticModel-ref>` object for each diagnostic which is to be included in the
   analysis.
 * Specify the prior distribution (or its components) using classes from the
-  :ref:`midas.priors <priors-ref> module (or implement your own using the provided base-class.
+  :ref:`midas.priors <priors-ref>` module (or implement your own using the provided base-class.
 * Build the parametrisation for the posterior distribution by calling the
   ``PlasmaState.build_posterior()`` function.
 * Use the functions in the :ref:`midas.posterior <posterior-ref>` module to evaluate the posterior

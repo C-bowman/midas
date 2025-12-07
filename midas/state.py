@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from numpy import ndarray, zeros
+from numpy import array, ndarray, zeros
 from midas.models.fields import FieldModel
 from midas.models import DiagnosticModel
 from midas.parameters import ParameterVector, Parameters, Fields
@@ -435,6 +435,59 @@ class PlasmaState:
         for tag, slc in cls.slices.items():
             theta[slc] = parameter_values.get(tag)
         return theta
+
+    @classmethod
+    def build_bounds(cls, parameter_bounds: dict[str, ndarray | tuple]) -> ndarray:
+        """
+        Given a dictionary mapping parameter vector names to arrays specifying the lower
+        and upper bounds for those parameters, merge these bounds into a single 2D
+        numpy array of shape ``(n_parameters, 2)``.
+
+        :param parameter_bounds: \
+            A dictionary mapping the names of parameter vectors to arrays specifying
+            the lower and upper bounds for those parameters. The given bounds for each
+            parameter must either be a 2D array of shape ``(n_values, 2)``, where
+            ``n_values`` is the number of parameter values associated with a given
+            parameter name, or a 1D array with only two elements, in which case all
+            values will be assigned the same upper and lower bounds.
+
+        :return: \
+            The posterior parameter bounds as a 2D array.
+        """
+        bounds = zeros([cls.n_params, 2])
+
+        missing_params = cls.parameter_names - {k for k in parameter_bounds.keys()}
+        if len(missing_params) > 0:
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState.build_bounds error ]
+                \r>> The given 'parameter_bounds' dictionary must contain all
+                \r>> parameter names as keys. The missing names are:
+                \r>> {missing_params}
+                """
+            )
+
+        for tag, slc in cls.slices.items():
+            b = parameter_bounds.get(tag)
+            b = b if isinstance(b, ndarray) else array(b)
+            b = b.squeeze()
+            if b.size == 2:
+                bounds[slc, 0] = b[0]
+                bounds[slc, 1] = b[1]
+            elif b.shape == (slc.stop - slc.start, 2):
+                bounds[slc, :] = b
+            else:
+                raise ValueError(
+                    f"""\n
+                    \r[ PlasmaState.build_bounds error ]
+                    \r>> The given bounds for each parameter must either be a 2D array
+                    \r>> of shape ``(n_values, 2)``, where ``n_values`` is the number of
+                    \r>> parameter values associated with a given parameter name, or
+                    \r>> a 1D array with only two elements, in which case all values
+                    \r>> will be assigned the same upper and lower bounds.
+                    """
+                )
+        return bounds
 
     @classmethod
     def get_parameter_values(cls, parameters: Parameters):
