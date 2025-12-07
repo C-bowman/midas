@@ -77,7 +77,10 @@ class DiagnosticLikelihood:
         )
 
         predictions = self.forward_model.predictions(**param_values, **field_values)
-        return self.likelihood.log_likelihood(predictions)
+        likelihood_param_values = PlasmaState.get_parameter_values(
+            self.likelihood_parameters
+        )
+        return self.likelihood.log_likelihood(predictions, **likelihood_param_values)
 
     def log_probability_gradient(self) -> ndarray:
         param_values, field_values, field_jacobians = (
