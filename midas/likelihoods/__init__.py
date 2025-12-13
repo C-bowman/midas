@@ -2,6 +2,7 @@ from numpy import ndarray, log, exp, logaddexp, sqrt, pi, isfinite
 from midas.state import LikelihoodFunction, DiagnosticLikelihood
 from midas.parameters import Parameters
 from midas.likelihoods.uncertainties import UncertaintyModel
+from midas.likelihoods.uncertainties import ConstantUncertainty, LinearUncertainty
 
 
 class GaussianLikelihood(LikelihoodFunction):
@@ -13,6 +14,9 @@ class GaussianLikelihood(LikelihoodFunction):
 
     :param sigma: \
         The standard deviations corresponding to each element in ``y_data`` as a 1D array.
+        Alternatively, a model for the uncertainties (inheriting from the
+        ``UncertaintyModel`` base-class) can be provided, allowing the uncertainties
+        to be parameterised and inferred.
     """
 
     def __init__(self, y_data: ndarray, sigma: ndarray | UncertaintyModel):
@@ -81,6 +85,9 @@ class LogisticLikelihood(LikelihoodFunction):
 
     :param sigma: \
         The uncertainties corresponding to each element in ``y_data`` as a 1D array.
+        Alternatively, a model for the uncertainties (inheriting from the
+        ``UncertaintyModel`` base-class) can be provided, allowing the uncertainties
+        to be parameterised and inferred.
     """
 
     def __init__(self, y_data: ndarray, sigma: ndarray | UncertaintyModel):
@@ -153,6 +160,9 @@ class CauchyLikelihood(LikelihoodFunction):
 
     :param gamma: \
         The uncertainties corresponding to each element in ``y_data`` as a 1D array.
+        Alternatively, a model for the uncertainties (inheriting from the
+        ``UncertaintyModel`` base-class) can be provided, allowing the uncertainties
+        to be parameterised and inferred.
     """
 
     def __init__(self, y_data: ndarray, gamma: ndarray | UncertaintyModel):
@@ -213,57 +223,6 @@ class CauchyLikelihood(LikelihoodFunction):
     ) -> tuple[ndarray, dict[str, ndarray]]:
         z = (self.y - predictions) * self.inv_gamma
         return (2 * self.inv_gamma) * z / (1 + z**2), self.empty_derivatives
-
-
-class ScaledGaussianLikelihood(LikelihoodFunction):
-    """
-    A class for constructing a parameterized Gaussian likelihood, where the given
-    uncertainties are multiplied by an error-scaling parameter before being used
-    in the likelihood calculation.
-
-    This approach of parameterizing the uncertainties can be useful in cases where
-    the absolute values of the uncertainties are not well known.
-
-    :param y_data: \
-        The measured data as a 1D array.
-
-    :param sigma: \
-        The standard deviations corresponding to each element in ``y_data`` as a 1D array.
-
-    :param scale_parameter_name: \
-        The name which will be given to the parameter which multiplicatively scales the
-        uncertainties given in ``sigma``.
-    """
-
-    def __init__(self, y_data: ndarray, sigma: ndarray, scale_parameter_name: str):
-        self.y = y_data
-        self.sigma = sigma
-        self.multiplier = scale_parameter_name
-        self.parameters = Parameters((self.multiplier, 1))
-
-        validate_likelihood_data(
-            values=y_data, uncertainties=sigma, likelihood_name=self.__class__.__name__
-        )
-
-        self.n_data = self.y.size
-        self.inv_sigma = 1.0 / self.sigma
-        self.inv_sigma_sqr = self.inv_sigma**2
-        self.normalisation = -log(self.sigma).sum() - 0.5 * log(2 * pi) * self.n_data
-
-    def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
-        multiplier = parameters[self.multiplier][0]
-        z = (self.y - predictions) * (self.inv_sigma / multiplier)
-        return -0.5 * (z**2).sum() + self.normalisation - log(multiplier) * self.n_data
-
-    def derivatives(
-        self, predictions: ndarray, **parameters: ndarray
-    ) -> tuple[ndarray, dict[str, ndarray]]:
-        multiplier = parameters[self.multiplier]
-
-        z = (self.y - predictions) * (self.inv_sigma / multiplier)
-        dL_dp = z * (self.inv_sigma / multiplier)
-        dL_dk = ((z**2).sum() - self.n_data) / multiplier
-        return dL_dp, {self.multiplier: dL_dk}
 
 
 def validate_likelihood_data(
@@ -330,8 +289,7 @@ def validate_likelihood_data(
             )
 
         valid_uncertainties = (
-            isfinite(uncertainties).all()
-            and (uncertainties > 0.0).all()
+            isfinite(uncertainties).all() and (uncertainties > 0.0).all()
         )
         if not valid_uncertainties:
             raise ValueError(
