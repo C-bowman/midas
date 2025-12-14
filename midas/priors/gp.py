@@ -38,6 +38,7 @@ class GaussianProcessPrior(BasePrior):
         coordinate values as ``numpy.ndarray``) corresponding the ``ParameterVector``
         passed to the ``parameters`` argument.
     """
+
     def __init__(
         self,
         name: str,
@@ -58,7 +59,9 @@ class GaussianProcessPrior(BasePrior):
             target_parameters = []
             self.I = eye(field_positions.size)
 
-        elif isinstance(parameters, ParameterVector) and isinstance(parameter_coordinates, dict):
+        elif isinstance(parameters, ParameterVector) and isinstance(
+            parameter_coordinates, dict
+        ):
             self.target = parameters.name
             spatial_data = array([v for v in parameter_coordinates.values()]).T
             self.fields = Fields()
@@ -81,13 +84,13 @@ class GaussianProcessPrior(BasePrior):
         self.mean_tag = f"{self.name}_mean_hyperpars"
         self.hyperparameters = {
             self.cov_tag: self.cov.hyperpar_labels,
-            self.mean_tag: self.mean.hyperpar_labels
+            self.mean_tag: self.mean.hyperpar_labels,
         }
 
         self.parameters = Parameters(
-            ParameterVector(name=self.cov_tag, size=self.cov.n_params),
-            ParameterVector(name=self.mean_tag, size=self.mean.n_params),
-            *target_parameters
+            (self.cov_tag, self.cov.n_params),
+            (self.mean_tag, self.mean.n_params),
+            *target_parameters,
         )
 
     def probability(self, **kwargs: ndarray) -> float:
@@ -122,3 +125,45 @@ class GaussianProcessPrior(BasePrior):
             self.mean_tag: array([(alpha * dmu).sum() for dmu in grad_mu]),
             self.cov_tag: array([0.5 * (Q * dK.T).sum() for dK in grad_K]),
         }
+
+    def fix_hyperparameters(self, hyperparameters: dict[str, ndarray]):
+        """
+        Fix the value of the mean and covariance hyperparameters. As this alters the
+        overall set of parameters in the analysis, ``fix_hyperparameters`` should be
+        called before building the posterior distribution by calling
+        ``PlasmaState.build_posterior``.
+
+        :param hyperparameters: \
+            A dictionary mapping the names of each of the mean and covariance
+            hyperparameters to their corresponding values.
+        """
+        cov_params = hyperparameters[self.cov_tag]
+        mean_params = hyperparameters[self.mean_tag]
+
+        # filter the parameters down to just the target parameters
+        self.parameters = Parameters(
+            *[p for p in self.parameters if p.name == self.target]
+        )
+
+        # calculate the fixed mean and covariance
+        self.K = self.cov.build_covariance(cov_params)
+        self.mu = self.mean.build_mean(mean_params)
+        L = cholesky(self.K)
+        iK = solve_triangular(L, self.I, lower=True)
+        self.iK = iK.T @ iK
+        self.logdet = log(diagonal(L)).sum()
+
+        # override required abstract methods with fixed-hyperparameter variants
+        self.probability = self.__fixed_probability
+        self.gradients = self.__fixed_gradients
+
+    def __fixed_probability(self, **kwargs: ndarray) -> float:
+        dy = kwargs[self.target] - self.mu
+        z = dy @ (self.iK @ dy)
+        return -0.5 * z - self.logdet
+
+    def __fixed_gradients(self, **kwargs: ndarray) -> dict[str, ndarray]:
+        # calculate some quantities we need for the derivatives
+        dy = kwargs[self.target] - self.mu
+        alpha = self.iK @ dy
+        return {self.target: -alpha}
