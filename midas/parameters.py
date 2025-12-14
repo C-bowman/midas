@@ -44,16 +44,9 @@ class FieldRequest:
     def __post_init__(self):
         # validate the inputs
         assert isinstance(self.name, str)
-        assert isinstance(self.coordinates, dict)
-        coord_sizes = set()
-        for key, value in self.coordinates.items():
-            assert isinstance(key, str)
-            assert isinstance(value, ndarray)
-            assert value.ndim == 1
-            coord_sizes.add(value.size)
-        # if set size is 1, then all coord arrays are of equal size
-        assert len(coord_sizes) == 1
-        self.size = coord_sizes.pop()
+        validate_coordinates(coordinates=self.coordinates, error_source="FieldRequest")
+        arrays = [A for A in self.coordinates.values()]
+        self.size = arrays[0].size
         # converting coordinate numpy array data to bytes allows us to create
         # a hashable key for the overall coordinate set
         coord_key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
@@ -181,5 +174,42 @@ def validate_field_requests(model, error_source: str, description: str):
             \r>> The {description}
             \r>> does not possess a valid 'fields' instance attribute.
             \r>> 'fields' must be a instance of the ``Fields`` class.
+            """
+        )
+
+
+def validate_coordinates(coordinates: dict[str, ndarray], error_source: str):
+    if not isinstance(coordinates, dict):
+        raise TypeError(
+            f"""\n
+            \r[ {error_source} error ]
+            \r>> The given coordinates should be a dictionary mapping strings to
+            \r>> 1D numpy arrays, but instead has type:
+            \r>> {type(coordinates)}
+            """
+        )
+
+    coord_sizes = set()
+    for key, value in coordinates.items():
+        valid_entry = (
+            isinstance(key, str) and isinstance(value, ndarray) and value.ndim == 1
+        )
+        if not valid_entry:
+            raise ValueError(
+                f"""\n
+                \r[ {error_source} error ]
+                \r>> The given coordinates should be a dictionary mapping strings to
+                \r>> 1D numpy arrays.
+                """
+            )
+
+        coord_sizes.add(value.size)
+    # if set size is 1, then all coord arrays are of equal size
+    if len(coord_sizes) != 1:
+        raise ValueError(
+            f"""\n
+            \r[ {error_source} error ]
+            \r>> The numpy arrays contained in the given coordinates dictionary
+            \r>> must all have equal size.
             """
         )
