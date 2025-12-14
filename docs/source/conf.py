@@ -77,17 +77,21 @@ pygments_style = None
 # a list of builtin themes.
 #
 html_theme = 'renku'
-# html_theme = 'default'
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_logo = "midas_logo.png"
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
