@@ -6,7 +6,7 @@ from inference.gp.covariance import CovarianceFunction, SquaredExponential
 from inference.gp.mean import MeanFunction, ConstantMean
 
 from midas.parameters import ParameterVector, FieldRequest
-from midas.parameters import Parameters, Fields
+from midas.parameters import Parameters, Fields, validate_coordinates
 from midas.state import BasePrior
 
 
@@ -26,14 +26,20 @@ class GaussianProcessPrior(BasePrior):
 
     :param field_positions: \
         A ``FieldRequest`` specifying the field and coordinates which will be used to
-        construct the GP prior. If specified, ``field_positions`` will override
-        any values passed to the ``parameters`` or ``parameter_coordinates`` arguments.
+        construct the GP prior. By default, the coordinates in the given ``FieldRequest``
+        will be used as the spatial coordinates for the GP, however these can be
+        overridden by specifying the ``coordinates`` keyword argument. This enables
+        the GP to use a different coordinate system from the one in which the field is
+        being modelled if desired.
+
+        If specified, ``field_positions`` will override any values passed to
+        the ``parameters`` argument.
 
     :param parameters: \
         A ``ParameterVector`` specifying which parameters will be used as inputs
         to the GP prior.
 
-    :param parameter_coordinates: \
+    :param coordinates: \
         A set of coordinates (a dictionary mapping coordinate names as ``str`` to
         coordinate values as ``numpy.ndarray``) corresponding the ``ParameterVector``
         passed to the ``parameters`` argument.
@@ -46,24 +52,31 @@ class GaussianProcessPrior(BasePrior):
         mean: MeanFunction = ConstantMean(),
         field_positions: FieldRequest = None,
         parameters: ParameterVector = None,
-        parameter_coordinates: dict[str, ndarray] = None,
+        coordinates: dict[str, ndarray] = None,
     ):
         self.cov = covariance
         self.mean = mean
         self.name = name
 
+        if coordinates is not None:
+            validate_coordinates(coordinates, error_source="GaussianProcessPrior")
+
         if isinstance(field_positions, FieldRequest):
             self.target = field_positions.name
-            spatial_data = array([v for v in field_positions.coordinates.values()]).T
+            if coordinates is not None:
+                assert all(field_positions.size == c.size for c in coordinates.values())
+                spatial_data = array([v for v in coordinates.values()]).T
+            else:
+                spatial_data = array(
+                    [v for v in field_positions.coordinates.values()]
+                ).T
             self.fields = Fields(field_positions)
             target_parameters = []
             self.I = eye(field_positions.size)
 
-        elif isinstance(parameters, ParameterVector) and isinstance(
-            parameter_coordinates, dict
-        ):
+        elif isinstance(parameters, ParameterVector) and isinstance(coordinates, dict):
             self.target = parameters.name
-            spatial_data = array([v for v in parameter_coordinates.values()]).T
+            spatial_data = array([v for v in coordinates.values()]).T
             self.fields = Fields()
             target_parameters = [parameters]
             self.I = eye(parameters.size)
@@ -73,7 +86,7 @@ class GaussianProcessPrior(BasePrior):
                 """\n
                 \r[ GaussianProcessPrior error ]
                 \r>> Either the 'field_positions' argument, or both of the 'parameters'
-                \r>> and 'parameter_coordinates' arguments must be provided.
+                \r>> and 'coordinates' arguments must be provided.
                 """
             )
 
