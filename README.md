@@ -1,6 +1,6 @@
 # MIDAS
-MIDAS is a framework for Bayesian and integrated data analysis. Documentation and
-examples are under construction! Some key features of MIDAS are:
+MIDAS is a Python framework for Bayesian and integrated data analysis.
+Some key features of MIDAS are:
 
 ### Use diagnostic models from any source
 MIDAS is designed to work with any diagnostic model which can by called from within Python,
@@ -50,5 +50,4 @@ pip install midas-fusion
 ```
 
 ## Documentation
- Documentation is still under construction - currently available docs can be found at
- [midas-fusion.readthedocs.io](https://midas-fusion.readthedocs.io/en/latest/).
+ Package documentation is available at [midas-fusion.readthedocs.io](https://midas-fusion.readthedocs.io/en/latest/).
