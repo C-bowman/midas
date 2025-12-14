@@ -11,6 +11,10 @@ The Likelihoods module
 Built-in likelihood functions
 -----------------------------
 
+Likelihood functions, which model the uncertainties associated with measured data
+as various probability distributions, are implemented as classes in MIDAS which also
+encapsulate the measured data and their estimated uncertainties.
+
 .. _GaussianLikelihood-ref:
 
 .. autoclass:: midas.likelihoods.GaussianLikelihood
@@ -25,12 +29,14 @@ Built-in likelihood functions
 Uncertainty models
 ------------------
 
-.. autoclass:: ConstantUncertainty
+As an alternative to passing fixed estimates of the uncertainties on measured data to
+likelihood function classes, a model for the uncertainties can be given instead, allowing
+them to vary.
 
-.. autoclass:: LinearUncertainty
+.. autoclass:: midas.likelihoods.ConstantUncertainty
 
+.. autoclass:: midas.likelihoods.LinearUncertainty
 
-from midas.likelihoods.uncertainties import UncertaintyModel
 
 
 Abstract base classes
@@ -44,3 +50,4 @@ Abstract base classes
 
 .. autoclass:: midas.likelihoods.UncertaintyModel
    :members: get_uncertainties, get_uncertainties_and_jacobians
+
