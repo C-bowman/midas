@@ -49,6 +49,20 @@ def test_gp_prior():
     frac_err = numeric_grad / analytic_grad - 1
     assert abs(frac_err).max() < 1e-4
 
+    # repeat the gradient calculation check after fixing the hyperparameters
+    gp_prior.fix_hyperparameters(param_dict)
+    PlasmaState.build_posterior(
+        diagnostics=[], priors=[gp_prior], field_models=[linear_field]
+    )
+
+    param_array = PlasmaState.merge_parameters(param_dict)
+    # evaluate the posterior gradient both analytically and numerically
+    analytic_grad = posterior.gradient(param_array)
+    numeric_grad = approx_fprime(xk=param_array, f=posterior.log_probability)
+    # check that the fractional error between the gradients is small
+    frac_err = numeric_grad / analytic_grad - 1
+    assert abs(frac_err).max() < 1e-4
+
 
 prior_test_setup = [
     (
