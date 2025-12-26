@@ -6,7 +6,7 @@ from midas.state import BasePrior
 
 class ExponentialPrior(BasePrior):
     """
-    Specify a exponential prior over either a series of field values, or a
+    Specify an exponential prior over either a series of field values, or a
     set of parameters.
 
     :param name: \
@@ -16,10 +16,10 @@ class ExponentialPrior(BasePrior):
         The mean of the exponential prior corresponding to each parameter or requested
         field value.
 
-    :param field_positions: \
+    :param field_request: \
         A ``FieldRequest`` specifying the field and coordinates to which the exponential
-        prior will be applied. If specified, ``field_positions`` will override
-        any values passed to the ``parameters`` arguments.
+        prior will be applied. If specified, ``field_request`` will override
+        any values passed to the ``parameter_vector`` arguments.
 
     :param parameter_vector: \
         A ``ParameterVector`` specifying which parameters to which the exponential prior
@@ -30,7 +30,7 @@ class ExponentialPrior(BasePrior):
         self,
         name: str,
         mean: ndarray,
-        field_positions: FieldRequest = None,
+        field_request: FieldRequest = None,
         parameter_vector: ParameterVector = None,
     ):
 
@@ -38,10 +38,10 @@ class ExponentialPrior(BasePrior):
         self.mean = atleast_1d(mean)
         self.lam = 1.0 / self.mean
 
-        if isinstance(field_positions, FieldRequest):
-            self.target = field_positions.name
-            self.n_targets = field_positions.size
-            self.fields = Fields(field_positions)
+        if isinstance(field_request, FieldRequest):
+            self.target = field_request.name
+            self.n_targets = field_request.size
+            self.fields = Fields(field_request)
             self.parameters = Parameters()
 
         elif isinstance(parameter_vector, ParameterVector):

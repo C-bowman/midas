@@ -6,7 +6,7 @@ from midas.state import BasePrior
 
 class BetaPrior(BasePrior):
     """
-    Specify a exponential prior over either a series of field values, or a
+    Specify a beta distribution prior over either a series of field values, or a
     set of parameters.
 
     :param name: \
@@ -20,10 +20,10 @@ class BetaPrior(BasePrior):
         The 'beta' shape parameter of the beta prior corresponding to each parameter or
         requested field value. All values of 'beta' must be greater than zero.
 
-    :param field_positions: \
+    :param field_request: \
         A ``FieldRequest`` specifying the field and coordinates to which the exponential
-        prior will be applied. If specified, ``field_positions`` will override
-        any values passed to the ``parameters`` arguments.
+        prior will be applied. If specified, ``field_request`` will override
+        any values passed to the ``parameter_vector`` arguments.
 
     :param parameter_vector: \
         A ``ParameterVector`` specifying which parameters to which the exponential prior
@@ -40,7 +40,7 @@ class BetaPrior(BasePrior):
         name: str,
         alpha: ndarray,
         beta: ndarray,
-        field_positions: FieldRequest = None,
+        field_request: FieldRequest = None,
         parameter_vector: ParameterVector = None,
         limits: tuple[float, float] = (0, 1),
     ):
@@ -58,10 +58,10 @@ class BetaPrior(BasePrior):
         self.scale = 1 / (upr - lwr)
         self.offset = -lwr * self.scale
 
-        if isinstance(field_positions, FieldRequest):
-            self.target = field_positions.name
-            self.n_targets = field_positions.size
-            self.fields = Fields(field_positions)
+        if isinstance(field_request, FieldRequest):
+            self.target = field_request.name
+            self.n_targets = field_request.size
+            self.fields = Fields(field_request)
             self.parameters = Parameters()
 
         elif isinstance(parameter_vector, ParameterVector):
@@ -74,7 +74,7 @@ class BetaPrior(BasePrior):
             raise ValueError(
                 """\n
                 \r[ BetaPrior error ]
-                \r>> One of the 'field_positions' or 'parameter_vector' keyword arguments
+                \r>> One of the 'field_request' or 'parameter_vector' keyword arguments
                 \r>> must be specified with a ``FieldRequest`` or ``ParameterVector``
                 \r>> object respectively.
                 """
