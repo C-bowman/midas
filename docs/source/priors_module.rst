@@ -14,3 +14,9 @@ Built-in prior distributions
 
 
 .. autoclass:: midas.priors.GaussianProcessPrior
+
+
+.. autoclass:: midas.priors.ExponentialPrior
+
+
+.. autoclass:: midas.priors.BetaPrior
