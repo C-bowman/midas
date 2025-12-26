@@ -61,7 +61,7 @@ class GaussianPrior(BasePrior):
             raise ValueError(
                 """\n
                 \r[ GaussianPrior error ]
-                \r>> One of the 'field_positions' or 'parameter_vector' keyword arguments
+                \r>> One of the 'field_request' or 'parameter_vector' keyword arguments
                 \r>> must be specified with a ``FieldRequest`` or ``ParameterVector``
                 \r>> object respectively.
                 """
