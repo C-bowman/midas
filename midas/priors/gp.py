@@ -24,7 +24,7 @@ class GaussianProcessPrior(BasePrior):
     :param mean: \
         An instance of a ``MeanFunction`` class from the ``inference-tools`` package.
 
-    :param field_positions: \
+    :param field_request: \
         A ``FieldRequest`` specifying the field and coordinates which will be used to
         construct the GP prior. By default, the coordinates in the given ``FieldRequest``
         will be used as the spatial coordinates for the GP, however these can be
@@ -32,10 +32,10 @@ class GaussianProcessPrior(BasePrior):
         the GP to use a different coordinate system from the one in which the field is
         being modelled if desired.
 
-        If specified, ``field_positions`` will override any values passed to
-        the ``parameters`` argument.
+        If specified, ``field_request`` will override any values passed to
+        the ``parameter_vector`` argument.
 
-    :param parameters: \
+    :param parameter_vector: \
         A ``ParameterVector`` specifying which parameters will be used as inputs
         to the GP prior.
 
@@ -50,8 +50,8 @@ class GaussianProcessPrior(BasePrior):
         name: str,
         covariance: CovarianceFunction = SquaredExponential(),
         mean: MeanFunction = ConstantMean(),
-        field_positions: FieldRequest = None,
-        parameters: ParameterVector = None,
+        field_request: FieldRequest = None,
+        parameter_vector: ParameterVector = None,
         coordinates: dict[str, ndarray] = None,
     ):
         self.cov = covariance
@@ -61,25 +61,25 @@ class GaussianProcessPrior(BasePrior):
         if coordinates is not None:
             validate_coordinates(coordinates, error_source="GaussianProcessPrior")
 
-        if isinstance(field_positions, FieldRequest):
-            self.target = field_positions.name
+        if isinstance(field_request, FieldRequest):
+            self.target = field_request.name
             if coordinates is not None:
-                assert all(field_positions.size == c.size for c in coordinates.values())
+                assert all(field_request.size == c.size for c in coordinates.values())
                 spatial_data = array([v for v in coordinates.values()]).T
             else:
                 spatial_data = array(
-                    [v for v in field_positions.coordinates.values()]
+                    [v for v in field_request.coordinates.values()]
                 ).T
-            self.fields = Fields(field_positions)
+            self.fields = Fields(field_request)
             target_parameters = []
-            self.I = eye(field_positions.size)
+            self.I = eye(field_request.size)
 
-        elif isinstance(parameters, ParameterVector) and isinstance(coordinates, dict):
-            self.target = parameters.name
+        elif isinstance(parameter_vector, ParameterVector) and isinstance(coordinates, dict):
+            self.target = parameter_vector.name
             spatial_data = array([v for v in coordinates.values()]).T
             self.fields = Fields()
-            target_parameters = [parameters]
-            self.I = eye(parameters.size)
+            target_parameters = [parameter_vector]
+            self.I = eye(parameter_vector.size)
 
         else:
             raise ValueError(

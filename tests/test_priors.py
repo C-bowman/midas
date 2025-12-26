@@ -27,7 +27,7 @@ def test_gp_prior():
     # set up a posterior containing only a gaussian process prior
     gp_prior = GaussianProcessPrior(
         name="emission",
-        field_positions=request,
+        field_request=request,
     )
 
     PlasmaState.build_posterior(
@@ -105,7 +105,7 @@ def test_unparameterized_priors(prior_class, kwargs):
 
     prior = prior_class(
         name="emission",
-        field_positions=request,
+        field_request=request,
         **kwargs,
     )
 
