@@ -1,4 +1,4 @@
-from numpy import ndarray, atleast_1d, log, full
+from numpy import ndarray, atleast_1d, log, zeros
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
@@ -82,24 +82,26 @@ class BetaPrior(BasePrior):
 
         assert self.alpha.ndim == self.beta.ndim == 1
         assert self.alpha.size == self.beta.size == self.n_targets
+        assert (self.alpha > 0).all() and (self.beta > 0).all()
         assert isinstance(name, str)
 
     def probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]
         z = self.scale * target_values + self.offset
-        log_prob = full(self.n_targets, fill_value=-1e50)
-        valid = (z > 0.) & (z < 1.)
-        if valid.any():
-            inds = valid.nonzero()
-            log_prob[inds] = self.am1[inds] * log(z[inds]) + self.bm1[inds] * log(1 - z[inds])
-        return log_prob.sum()
+        invalid = (z <= 0.) | (z >= 1.)
+        if invalid.any():
+            return -1e50
+        else:
+            log_prob = self.am1 * log(z) + self.bm1 * log(1 - z)
+            return log_prob.sum()
 
     def gradients(self, **kwargs: ndarray) -> dict[str, ndarray]:
         target_values = kwargs[self.target]
         z = self.scale * target_values + self.offset
-        gradient = full(self.n_targets, fill_value=-1e50)
-        valid = (z > 0.) & (z < 1.)
-        if valid.any():
-            inds = valid.nonzero()
-            gradient[inds] = (self.am1[inds] / z - self.bm1[inds] / (1 - z[inds])) * self.scale
-        return {self.target: gradient}
+
+        invalid = (z <= 0.) | (z >= 1.)
+        if invalid.any():
+            return {self.target: zeros(self.n_targets)}
+        else:
+            gradient = (self.am1 / z - self.bm1 / (1 - z)) * self.scale
+            return {self.target: gradient}

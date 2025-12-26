@@ -4,6 +4,7 @@ from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
 from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
+from midas.priors import BetaPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
 from midas.state import PlasmaState
 from midas import posterior
@@ -77,7 +78,15 @@ prior_test_setup = [
         {
             "mean": rng.uniform(low=0.1, high=10.0, size=16),
         },
-    )
+    ),
+    (
+        BetaPrior,
+        {
+            "alpha": rng.uniform(low=0.3, high=3.0, size=16),
+            "beta": rng.uniform(low=0.3, high=3.0, size=16),
+            "limits": (-0.5, 2.5)
+        },
+    ),
 ]
 
 
