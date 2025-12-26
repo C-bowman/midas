@@ -41,8 +41,8 @@ class GaussianProcessPrior(BasePrior):
 
     :param coordinates: \
         A set of coordinates (a dictionary mapping coordinate names as ``str`` to
-        coordinate values as ``numpy.ndarray``) corresponding the ``ParameterVector``
-        passed to the ``parameters`` argument.
+        coordinate values as ``numpy.ndarray``) corresponding the values specified
+        by either the ``field_request`` or ``parameter_vector`` keyword arguments.
     """
 
     def __init__(
@@ -85,7 +85,7 @@ class GaussianProcessPrior(BasePrior):
             raise ValueError(
                 """\n
                 \r[ GaussianProcessPrior error ]
-                \r>> Either the 'field_positions' argument, or both of the 'parameters'
+                \r>> Either the 'field_request' argument, or both of the 'parameter_vector'
                 \r>> and 'coordinates' arguments must be provided.
                 """
             )
