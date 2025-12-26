@@ -3,7 +3,7 @@ from numpy import linspace, sin
 from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
-from midas.priors import GaussianProcessPrior, GaussianPrior
+from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
 from midas.state import PlasmaState
 from midas import posterior
@@ -71,6 +71,12 @@ prior_test_setup = [
             "mean": rng.uniform(low=-1.0, high=1.0, size=16),
             "standard_deviation": rng.uniform(low=0.5, high=2.0, size=16),
         },
+    ),
+    (
+        ExponentialPrior,
+        {
+            "mean": rng.uniform(low=0.1, high=10.0, size=16),
+        },
     )
 ]
 
@@ -99,7 +105,7 @@ def test_unparameterized_priors(prior_class, kwargs):
     )
 
     # build some test parameters at which to evaluate the posterior
-    param_dict = {"emission_linear_basis": sin(0.5 * R)}
+    param_dict = {"emission_linear_basis": sin(0.5 * R) + 1.0}
     param_array = PlasmaState.merge_parameters(param_dict)
 
     # evaluate the posterior gradient both analytically and numerically
