@@ -65,6 +65,7 @@ class ConstantUncertainty(UncertaintyModel):
     :param parameter_name: \
         The name of the parameter which sets the uncertainty value for all data points.
     """
+
     def __init__(self, n_data: int, parameter_name: str):
         self.size = n_data
         self.name = parameter_name
@@ -92,8 +93,9 @@ class LinearUncertainty(UncertaintyModel):
         A prefix added to the names of the parameters specifying the fractional and
         constant components of the modelled uncertainties.
     """
+
     def __init__(self, y_data: ndarray, parameter_prefix: str):
-        self.y_data = y_data
+        self.y_data = abs(y_data)  # absolute values to prevent negative uncertainties
         self.size = y_data.size
         self.const_name = f"{parameter_prefix}_constant_error"
         self.frac_name = f"{parameter_prefix}_fractional_error"
