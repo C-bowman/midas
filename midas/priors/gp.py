@@ -1,4 +1,4 @@
-from numpy import array, diagonal, eye, log, ndarray
+from numpy import array, diagonal, eye, log, ndarray, atleast_1d
 from numpy.linalg import cholesky, LinAlgError
 from scipy.linalg import solve_triangular
 from warnings import warn
@@ -160,7 +160,7 @@ class GaussianProcessPrior(BasePrior):
 
         # calculate the fixed mean and covariance
         self.K = self.cov.build_covariance(cov_params)
-        self.mu = self.mean.build_mean(mean_params)
+        self.mu = self.mean.build_mean(atleast_1d(mean_params))
         L = cholesky(self.K)
         iK = solve_triangular(L, self.I, lower=True)
         self.iK = iK.T @ iK
