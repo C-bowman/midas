@@ -25,6 +25,7 @@ dependencies = [
     "numpy >= 1.26.4",
     "scipy >= 1.12",
     "inference-tools >= 0.14.2",
+    "tokamesh >= 0.5.4"
 ]
 
 [project.urls]
