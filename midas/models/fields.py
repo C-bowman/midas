@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from numpy import ndarray, zeros, diff
+from tokamesh.mesh import TriangularMesh
 from midas.parameters import FieldRequest, ParameterVector, Parameters
+from midas.parameters import validate_coordinates
 
 
 class FieldModel(ABC):
@@ -123,3 +125,74 @@ class PiecewiseLinearField(FieldModel):
             basis[k, i + 1] = (x[k] - knots[i]) / (knots[i + 1] - knots[i])
             basis[k, i] = 1 - basis[k, i + 1]
         return basis
+
+
+class TriangularMeshField(FieldModel):
+    """
+    Models a chosen field using a 2D triangular mesh.
+
+    The parameters of the field model are the field values at the mesh vertices.
+    Inside each triangle of the mesh, the field is represented as the unique plane which
+    passes through the 3D coordinates (two spatial coordinates plus the field value) of
+    each of the triangles vertices. Consequently, the value of the field is continuous
+    and well-defined everywhere inside the mesh.
+
+    :param field_name: \
+        The name of the field to be modelled.
+
+    :param mesh_coordinates: \
+        The coordinates specifying the mesh vertices as a dictionary mapping the
+        names of each of the two coordinates to 1D numpy arrays of the coordinate values.
+
+    :param triangle_vertices: \
+        The indices specifying the vertices which make up each triangle in the mesh.
+        This should be specified as a numpy array of integers of shape
+        ``(num_triangles, 3)``.
+    """
+    def __init__(
+        self,
+        field_name: str,
+        mesh_coordinates: dict[str, ndarray],
+        triangle_vertices: ndarray,
+    ):
+        validate_coordinates(mesh_coordinates, error_source="TriangularMeshField")
+        assert len(mesh_coordinates) == 2
+
+        self.mesh_coords = [key for key in mesh_coordinates.keys()]
+        self.n_params = mesh_coordinates[self.mesh_coords[0]].size
+
+        self.mesh = TriangularMesh(
+            R=mesh_coordinates[self.mesh_coords[0]],
+            z=mesh_coordinates[self.mesh_coords[1]],
+            triangles=triangle_vertices,
+        )
+
+        self.name = field_name
+        self.matrix_cache = {}
+        self.param_name = f"{field_name}_triangular_basis"
+        self.parameters = Parameters(
+            (self.param_name, self.n_params)
+        )
+
+    def get_basis(self, field: FieldRequest) -> ndarray:
+        if field in self.matrix_cache:
+            A = self.matrix_cache[field]
+        else:
+            A = self.mesh.build_interpolator_matrix(
+                R=field.coordinates[self.mesh_coords[0]],
+                z=field.coordinates[self.mesh_coords[1]],
+            )
+            self.matrix_cache[field] = A
+        return A
+
+    def get_values(
+        self, parameters: dict[str, ndarray], field: FieldRequest
+    ) -> ndarray:
+        basis = self.get_basis(field)
+        return basis @ parameters[self.param_name]
+
+    def get_values_and_jacobian(
+        self, parameters: dict[str, ndarray], field: FieldRequest
+    ) -> tuple[ndarray, dict[str, ndarray]]:
+        basis = self.get_basis(field)
+        return basis @ parameters[self.param_name], {self.param_name: basis}
