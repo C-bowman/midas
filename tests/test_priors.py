@@ -1,5 +1,5 @@
 import pytest
-from numpy import linspace, sin
+from numpy import linspace, sin, allclose
 from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
@@ -137,10 +137,4 @@ def test_unparameterized_priors(prior_class, kwargs):
     analytic_grad = posterior.gradient(param_array)
     numeric_grad = approx_fprime(xk=param_array, f=posterior.log_probability)
 
-    # in cases where the value should be exactly zero, the fractional error isn't
-    # defined, so pass the test if the values agree exactly.
-    both_zero = analytic_grad == numeric_grad
-
-    # check that the fractional error between the gradients is small
-    frac_err = numeric_grad / analytic_grad - 1
-    assert ((abs(frac_err) < 1e-4) | both_zero).all()
+    assert allclose(analytic_grad, numeric_grad)
