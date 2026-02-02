@@ -4,7 +4,7 @@ from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
 from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
-from midas.priors import BetaPrior
+from midas.priors import BetaPrior, SoftLimitPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
 from midas.state import PlasmaState
 from midas import posterior
@@ -84,7 +84,23 @@ prior_test_setup = [
         {
             "alpha": rng.uniform(low=0.3, high=3.0, size=16),
             "beta": rng.uniform(low=0.3, high=3.0, size=16),
-            "limits": (-0.5, 2.5)
+            "limits": (-0.5, 2.5),
+        },
+    ),
+    (
+        SoftLimitPrior,
+        {
+            "upper_limit": 1.2,
+            "sigma": 0.75,
+            "operator": None,
+        },
+    ),
+    (
+        SoftLimitPrior,
+        {
+            "upper_limit": 0.2,
+            "sigma": 0.3,
+            "operator": rng.random(size=(5, 16)),
         },
     ),
 ]
@@ -121,6 +137,10 @@ def test_unparameterized_priors(prior_class, kwargs):
     analytic_grad = posterior.gradient(param_array)
     numeric_grad = approx_fprime(xk=param_array, f=posterior.log_probability)
 
+    # in cases where the value should be exactly zero, the fractional error isn't
+    # defined, so pass the test if the values agree exactly.
+    both_zero = analytic_grad == numeric_grad
+
     # check that the fractional error between the gradients is small
     frac_err = numeric_grad / analytic_grad - 1
-    assert abs(frac_err).max() < 1e-4
+    assert ((abs(frac_err) < 1e-4) | both_zero).all()
