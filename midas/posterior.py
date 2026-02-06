@@ -1,5 +1,7 @@
-from numpy import array, ndarray
+from numpy import array, ndarray, zeros
 from collections import defaultdict
+
+from midas import FieldRequest
 from midas.state import PlasmaState, DiagnosticLikelihood
 
 
@@ -114,12 +116,43 @@ def sample_model_predictions(parameter_samples: ndarray) -> dict[str, ndarray]:
 
     predictions = defaultdict(list)
 
+    diagnostics = [d for d in PlasmaState.components if isinstance(d, DiagnosticLikelihood)]
     # group model predictions for each sample into lists
     for theta in parameter_samples:
         PlasmaState.theta = theta.copy()
-        for comp in PlasmaState.components:
-            predictions[comp.name].append(comp.get_predictions())
+        for diagnostic in diagnostics:
+            predictions[diagnostic.name].append(diagnostic.get_predictions())
 
     # convert the lists of arrays into 2D arrays
     predictions = {name: array(val) for name, val in predictions.items()}
     return predictions
+
+
+def sample_field_values(parameter_samples: ndarray, field_request: FieldRequest) -> ndarray:
+    """
+    Calculate the values of a requested field for a given set of parameter samples.
+
+    :param parameter_samples: \
+        The model parameter samples as a 2D array with shape
+        ``(n_samples, n_parameters)``.
+
+    :param field_request: \
+        A ``FieldRequest`` specifying which field values should be calculated from
+        the given parameter samples.
+
+    :return: \
+        The requested field values calculated for each sample as a 2D array.
+    """
+    assert isinstance(parameter_samples, ndarray)
+    assert parameter_samples.ndim == 2
+    assert parameter_samples.shape[1] == PlasmaState.n_params
+    assert field_request.name in PlasmaState.field_models
+
+    field_model = PlasmaState.field_models[field_request.name]
+    field_values = zeros([parameter_samples.shape[0], field_request.size])
+    # group model predictions for each sample into lists
+    for i, theta in enumerate(parameter_samples):
+        param_dict = PlasmaState.split_parameters(theta)
+        field_values[i, :] = field_model.get_values(parameters=param_dict, field=field_request)
+
+    return field_values

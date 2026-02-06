@@ -22,3 +22,6 @@ Evaluating the posterior
 
 
 .. autofunction:: midas.posterior.sample_model_predictions
+
+
+.. autofunction:: midas.posterior.sample_field_values
