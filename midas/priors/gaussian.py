@@ -10,7 +10,7 @@ class GaussianPrior(BasePrior):
     set of parameters.
 
     :param name: \
-        The name used to identify the Gaussian prior
+        The name used to identify the Gaussian prior.
 
     :param mean: \
         The mean of the Gaussian prior corresponding to each parameter or requested

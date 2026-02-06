@@ -20,3 +20,6 @@ Built-in prior distributions
 
 
 .. autoclass:: midas.priors.BetaPrior
+
+
+.. autoclass:: midas.priors.SoftLimitPrior
