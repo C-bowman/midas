@@ -91,7 +91,7 @@ prior_test_setup = [
         SoftLimitPrior,
         {
             "upper_limit": 1.2,
-            "sigma": 0.75,
+            "standard_deviation": 0.75,
             "operator": None,
         },
     ),
@@ -99,7 +99,7 @@ prior_test_setup = [
         SoftLimitPrior,
         {
             "upper_limit": 0.2,
-            "sigma": 0.3,
+            "standard_deviation": 0.3,
             "operator": rng.random(size=(5, 16)),
         },
     ),
