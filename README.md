@@ -51,3 +51,11 @@ pip install midas-fusion
 
 ## Documentation
  Package documentation is available at [midas-fusion.readthedocs.io](https://midas-fusion.readthedocs.io/en/latest/).
+ 
+## Jupyter notebook examples
+This [jupyter notebook example](https://github.com/C-bowman/midas-examples/blob/main/z-eff/z_effective_inference.ipynb)
+demonstrates how MIDAS can be used to infer multiple fields by analysing data from multiple diagnostics simultaneously.
+
+## Community discord server
+We have a community discord server where you can connect wth other MIDAS users, ask questions and learn about the
+work other people are doing with MIDAS. Use [this link to get an invitation](https://discord.gg/FxefCg7UZt) to the server!

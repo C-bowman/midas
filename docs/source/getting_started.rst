@@ -34,5 +34,5 @@ Jupyter notebook examples
 -------------------------
 
 Annotated example code is available as a jupyter notebook in our
-`soft X-ray emission toy example <https://github.com/C-bowman/midas-examples/blob/main/sxr_example/sxr_example_notebook.ipynb>`_.
+`Z-effective profile inference example <https://github.com/C-bowman/midas-examples/blob/main/z-eff/z_effective_inference.ipynb>`_.
 Additional example notebooks will be added as development progresses!
