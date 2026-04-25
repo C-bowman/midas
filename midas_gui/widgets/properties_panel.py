@@ -16,6 +16,7 @@ class PropertiesPanel(QWidget):
     """Right sidebar: edits properties of the currently selected node."""
 
     node_updated = Signal(str)  # emits node_id
+    ports_changed = Signal(str)  # emits node_id when dynamic ports need rebuild
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -75,7 +76,7 @@ class PropertiesPanel(QWidget):
         props = node.properties
         type_id = node.type_id
 
-        # Common: name field
+        # Common: name field (for all nodes that have one)
         if "name" in props:
             edit = QLineEdit(str(props.get("name", "")))
             edit.setPlaceholderText("Enter name…")
@@ -83,7 +84,7 @@ class PropertiesPanel(QWidget):
             self._form_layout.addRow("Name:", edit)
             self._editors["name"] = edit
 
-        # ParameterVector
+        # ── Hard-coded utility nodes ────────────────────────────────────
         if type_id == "ParameterVector":
             spin = QSpinBox()
             spin.setRange(1, 10000)
@@ -92,46 +93,29 @@ class PropertiesPanel(QWidget):
             self._form_layout.addRow("Size:", spin)
             self._editors["size"] = spin
 
-        # Array
         elif type_id == "Array":
             self._add_data_editors(props)
 
-        # Coordinates
         elif type_id == "Coordinates":
             self._add_coordinates_editors(props)
 
-        # FieldRequest — no extra properties beyond name
         elif type_id == "FieldRequest":
             pass
 
-        # Field models
-        elif type_id in ("PiecewiseLinearField", "CubicSplineField"):
-            self._add_field_model_editors(props)
-
-        # LinearDiagnosticModel — no extra properties beyond name (ports handle inputs)
-        elif type_id == "LinearDiagnosticModel":
-            pass
-
-        # GaussianLikelihood — no extra properties beyond name
-        elif type_id == "GaussianLikelihood":
-            pass
-
-        # DiagnosticLikelihood — no extra properties beyond name
         elif type_id == "DiagnosticLikelihood":
             pass
 
-        # ConstantUncertainty
-        elif type_id == "ConstantUncertainty":
-            self._add_constant_uncertainty_editors(props)
-
-        # GaussianPrior — no extra properties beyond name (arrays and targets are ports)
-        elif type_id == "GaussianPrior":
-            pass
+        # ── Auto-generated nodes: build editors from default_properties ─
+        else:
+            self._build_auto_editors(node)
 
     def _add_data_editors(self, props: dict):
         arr = ArrayEditor("Data values")
-        source = props.get("source_type", "file")
-        arr.set_source(source)
+        config = props.get("values_config")
+        if config:
+            arr.set_config(config)
+        else:
+            arr.set_source(props.get("source_type", "file"))
         arr.value_changed.connect(lambda: self._on_array_changed("values", arr))
         self._form_layout.addRow(arr)
         self._editors["values"] = arr
@@ -160,15 +144,11 @@ class PropertiesPanel(QWidget):
         from PySide6.QtWidgets import QHBoxLayout, QListWidget, QListWidgetItem
         coord_names = props.get("coordinate_names", ["R", "z"])
 
-        label = QLabel("Coordinate names:")
-        label.setStyleSheet(f"color: {THEME.text_primary};")
-        self._form_layout.addRow(label)
-
         list_widget = QListWidget()
         list_widget.setMaximumHeight(80)
         for name in coord_names:
             list_widget.addItem(QListWidgetItem(name))
-        self._form_layout.addRow(list_widget)
+        self._form_layout.addRow("Coordinates:", list_widget)
         self._editors["coord_list"] = list_widget
 
         add_row = QWidget()
@@ -186,6 +166,8 @@ class PropertiesPanel(QWidget):
         def _sync_names():
             names = [list_widget.item(i).text() for i in range(list_widget.count())]
             self._set_prop("coordinate_names", names)
+            if self._node:
+                self.ports_changed.emit(self._node.id)
 
         def _add():
             text = new_name_edit.text().strip()
@@ -254,6 +236,105 @@ class PropertiesPanel(QWidget):
         std_arr.value_changed.connect(lambda: self._on_array_changed("std", std_arr))
         self._form_layout.addRow(std_arr)
         self._editors["std"] = std_arr
+
+    def _build_auto_editors(self, node: NodeModel):
+        """Build property editors dynamically from default_properties metadata."""
+        from PySide6.QtWidgets import QCheckBox, QHBoxLayout
+
+        props = node.properties
+        unresolved_meta = props.get("_unresolved", {})
+
+        for key, default_val in node.spec.default_properties.items():
+            if key in ("name", "_class", "_unresolved"):
+                continue
+
+            if key in unresolved_meta:
+                self._add_unresolved_editor(key, props, unresolved_meta[key])
+            elif isinstance(default_val, str):
+                edit = QLineEdit(str(props.get(key, default_val)))
+                edit.setPlaceholderText(f"Enter {key}…")
+                k = key  # capture for closure
+                edit.textChanged.connect(lambda val, k=k: self._set_prop(k, val))
+                self._form_layout.addRow(f"{key}:", edit)
+                self._editors[key] = edit
+            elif isinstance(default_val, int):
+                spin = QSpinBox()
+                spin.setRange(-100000, 100000)
+                spin.setValue(int(props.get(key, default_val)))
+                k = key
+                spin.valueChanged.connect(lambda val, k=k: self._set_prop(k, val))
+                self._form_layout.addRow(f"{key}:", spin)
+                self._editors[key] = spin
+            elif isinstance(default_val, float):
+                spin = QDoubleSpinBox()
+                spin.setRange(-1e12, 1e12)
+                spin.setDecimals(6)
+                spin.setValue(float(props.get(key, default_val)))
+                k = key
+                spin.valueChanged.connect(lambda val, k=k: self._set_prop(k, val))
+                self._form_layout.addRow(f"{key}:", spin)
+                self._editors[key] = spin
+            elif isinstance(default_val, tuple) and len(default_val) == 2:
+                row = QWidget()
+                h = QHBoxLayout(row)
+                h.setContentsMargins(0, 0, 0, 0)
+                current = props.get(key, default_val)
+                lo = QDoubleSpinBox()
+                lo.setRange(-1e12, 1e12)
+                lo.setDecimals(6)
+                lo.setValue(float(current[0]))
+                hi = QDoubleSpinBox()
+                hi.setRange(-1e12, 1e12)
+                hi.setDecimals(6)
+                hi.setValue(float(current[1]))
+                h.addWidget(lo)
+                h.addWidget(QLabel("to"))
+                h.addWidget(hi)
+                k = key
+
+                def _on_range_changed(_, k=k, lo=lo, hi=hi):
+                    self._set_prop(k, (lo.value(), hi.value()))
+
+                lo.valueChanged.connect(_on_range_changed)
+                hi.valueChanged.connect(_on_range_changed)
+                self._form_layout.addRow(f"{key}:", row)
+                self._editors[key] = row
+
+    def _add_unresolved_editor(self, key: str, props: dict, meta: dict):
+        """Add a variable-name field + optional 'Use default' checkbox for unresolved types."""
+        from PySide6.QtWidgets import QCheckBox, QHBoxLayout
+
+        type_name = meta.get("type_name", "?")
+        has_default = meta.get("has_default", False)
+
+        row = QWidget()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 0, 0, 0)
+
+        edit = QLineEdit(str(props.get(key, "")))
+        edit.setPlaceholderText(f"variable name ({type_name})")
+        k = key
+        edit.textChanged.connect(lambda val, k=k: self._set_prop(k, val))
+        h.addWidget(edit)
+
+        if has_default:
+            cb = QCheckBox("Use default")
+            use_default_key = f"_use_default_{key}"
+            cb.setChecked(props.get(use_default_key, True))
+            edit.setEnabled(not cb.isChecked())
+
+            def _on_toggle(checked, k=k, udk=use_default_key, e=edit):
+                self._set_prop(udk, checked)
+                e.setEnabled(not checked)
+
+            cb.toggled.connect(_on_toggle)
+            h.addWidget(cb)
+            # Initialize the use-default flag
+            if use_default_key not in props:
+                props[use_default_key] = True
+
+        self._form_layout.addRow(f"{key}:", row)
+        self._editors[key] = edit
 
     def _set_prop(self, key: str, value):
         if self._node:

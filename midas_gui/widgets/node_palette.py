@@ -55,6 +55,12 @@ class NodePalette(QWidget):
             node_item.setData(0, Qt.ItemDataRole.UserRole, type_id)
             categories[cat].addChild(node_item)
 
+    def refresh(self):
+        """Rebuild the tree to reflect newly registered node types."""
+        self.tree.clear()
+        self._build_tree()
+        self.tree.expandAll()
+
     def _start_drag(self, supported_actions):
         item = self.tree.currentItem()
         if not item:

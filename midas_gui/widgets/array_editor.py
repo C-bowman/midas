@@ -168,6 +168,22 @@ class ArrayEditor(QWidget):
         if idx >= 0:
             self.source_combo.setCurrentIndex(idx)
 
+    def set_config(self, config: dict):
+        """Restore the editor state from a config dict (as returned by get_config)."""
+        source = config.get("source", "linspace")
+        self.set_source(source)
+        if source == "linspace":
+            self.ls_start.setValue(config.get("start", 0.0))
+            self.ls_stop.setValue(config.get("stop", 1.0))
+            self.ls_num.setValue(config.get("num", 10))
+        elif source == "arange":
+            self.ar_start.setValue(config.get("start", 0.0))
+            self.ar_stop.setValue(config.get("stop", 1.0))
+            self.ar_step.setValue(config.get("step", 0.1))
+        elif source == "file":
+            self.file_path_edit.setText(config.get("path", ""))
+        self._generate()
+
     def get_config(self) -> dict:
         source = self.source_combo.currentText()
         if source == "linspace":

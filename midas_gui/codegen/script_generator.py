@@ -2,6 +2,19 @@ from __future__ import annotations
 
 from midas_gui.session import GraphModel, NodeModel, Edge, NODE_TYPES
 
+# Hard-coded utility node type_ids — everything else uses generic emitter
+_HARDCODED_TYPES = {"ParameterVector", "Array", "Coordinates", "FieldRequest", "DiagnosticLikelihood"}
+
+# Category ordering for dependency-safe emission
+_CATEGORY_ORDER = [
+    "Parameters & Data",
+    "Field Models",
+    "Diagnostic Models",
+    "Uncertainty Models",
+    "Likelihoods",
+    "Priors",
+]
+
 
 def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = False) -> str:
     """Traverse the node graph and emit a valid MIDAS Python script."""
@@ -13,11 +26,6 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
         for err in errors:
             lines.append(f"#   - {err}")
         lines.append("")
-
-    # Collect nodes by type
-    nodes_by_type: dict[str, list[NodeModel]] = {}
-    for node in graph.nodes.values():
-        nodes_by_type.setdefault(node.type_id, []).append(node)
 
     # Build variable name map: node_id -> python variable name
     var_names: dict[str, str] = {}
@@ -48,24 +56,14 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
         lines.append("# ── Analysis construction ──────────────────────────────────")
         lines.append("")
 
-    # Emit in dependency order
-    order = [
-        "ParameterVector", "Array", "Coordinates",
-        "PiecewiseLinearField", "CubicSplineField",
-        "FieldRequest",
-        "LinearDiagnosticModel",
-        "ConstantUncertainty",
-        "GaussianLikelihood",
-        "DiagnosticLikelihood",
-        "GaussianPrior",
-    ]
+    # Emit in dependency order: group by category, hard-coded order first
+    ordered_nodes = _dependency_order(graph)
 
-    for type_id in order:
-        for node in nodes_by_type.get(type_id, []):
-            code = _emit_node(node, var_names, graph, comments)
-            if code:
-                lines.extend(code)
-                lines.append("")
+    for node in ordered_nodes:
+        code = _emit_node(node, var_names, graph, comments)
+        if code:
+            lines.extend(code)
+            lines.append("")
 
     # Build posterior call
     if comments:
@@ -73,13 +71,17 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
         lines.append("")
 
     diag_likelihoods = [
-        var_names[n.id] for n in nodes_by_type.get("DiagnosticLikelihood", [])
+        var_names[n.id] for n in graph.nodes.values()
+        if n.type_id == "DiagnosticLikelihood"
     ]
-    priors = [var_names[n.id] for n in nodes_by_type.get("GaussianPrior", [])]
-    field_models = []
-    for tid in ("PiecewiseLinearField", "CubicSplineField"):
-        for n in nodes_by_type.get(tid, []):
-            field_models.append(var_names[n.id])
+    priors = [
+        var_names[n.id] for n in graph.nodes.values()
+        if NODE_TYPES.get(n.type_id, None) and NODE_TYPES[n.type_id].category == "Priors"
+    ]
+    field_models = [
+        var_names[n.id] for n in graph.nodes.values()
+        if NODE_TYPES.get(n.type_id, None) and NODE_TYPES[n.type_id].category == "Field Models"
+    ]
 
     if diag_likelihoods or priors or field_models:
         lines.append("PlasmaState.build_posterior(")
@@ -96,13 +98,13 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
             lines.append("# Uncomment and configure the section below to run optimization.")
             lines.append("")
         lines.append("# from scipy.optimize import minimize")
-        lines.append("# from midas.posterior import cost, cost_gradient")
+        lines.append("# from midas import posterior")
         lines.append("#")
         lines.append("# theta0 = np.zeros(PlasmaState.n_params)")
         lines.append("# result = minimize(")
-        lines.append("#     cost,")
+        lines.append("#     posterior.cost,")
         lines.append("#     x0=theta0,")
-        lines.append("#     jac=cost_gradient,")
+        lines.append("#     jac=posterior.cost_gradient,")
         lines.append("#     method='L-BFGS-B',")
         lines.append("#     bounds=PlasmaState.build_bounds(),")
         lines.append("# )")
@@ -112,12 +114,11 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
             lines.append("# ── MCMC Sampling ─────────────────────────────────────────")
             lines.append("# Uncomment and configure the section below to run sampling.")
             lines.append("")
-        lines.append("# from inference_tools.mcmc import HamiltonianChain")
-        lines.append("# from midas.posterior import log_probability, gradient")
+        lines.append("# from inference.mcmc import HamiltonianChain")
         lines.append("#")
         lines.append("# chain = HamiltonianChain(")
-        lines.append("#     posterior=log_probability,")
-        lines.append("#     gradient=gradient,")
+        lines.append("#     posterior=posterior.log_probability,")
+        lines.append("#     gradient=posterior.gradient,")
         lines.append("#     start=theta_map,")
         lines.append("# )")
         lines.append("# chain.advance(5000)")
@@ -145,30 +146,38 @@ def _collect_imports(graph: GraphModel) -> dict[str, set[str]]:
     def _add(module: str, name: str):
         imports.setdefault(module, set()).add(name)
 
-    has_types = {n.type_id for n in graph.nodes.values()}
+    for node in graph.nodes.values():
+        type_id = node.type_id
+        spec = NODE_TYPES.get(type_id)
+        if not spec:
+            continue
 
-    if "ParameterVector" in has_types:
-        _add("midas.parameters", "ParameterVector")
-    if "FieldRequest" in has_types:
-        _add("midas.parameters", "FieldRequest")
-    if "Array" in has_types:
-        pass  # data is just numpy arrays
-    if "Coordinates" in has_types:
-        pass  # coordinates are just dicts
-    if "PiecewiseLinearField" in has_types:
-        _add("midas.models.fields", "PiecewiseLinearField")
-    if "CubicSplineField" in has_types:
-        _add("midas.models.fields", "CubicSplineField")
-    if "LinearDiagnosticModel" in has_types:
-        _add("midas.models.diagnostics", "LinearDiagnosticModel")
-    if "GaussianLikelihood" in has_types:
-        _add("midas.likelihoods", "GaussianLikelihood")
-    if "DiagnosticLikelihood" in has_types:
-        _add("midas.likelihoods", "DiagnosticLikelihood")
-    if "ConstantUncertainty" in has_types:
-        _add("midas.likelihoods.uncertainties", "ConstantUncertainty")
-    if "GaussianPrior" in has_types:
-        _add("midas.priors", "GaussianPrior")
+        # Hard-coded utility nodes
+        if type_id == "ParameterVector":
+            _add("midas.parameters", "ParameterVector")
+        elif type_id == "FieldRequest":
+            _add("midas.parameters", "FieldRequest")
+        elif type_id == "DiagnosticLikelihood":
+            _add("midas.likelihoods", "DiagnosticLikelihood")
+        elif type_id in ("Array", "Coordinates"):
+            pass  # numpy arrays / dicts — no special import
+        else:
+            # Auto-generated: derive import from _class metadata
+            class_path = spec.default_properties.get("_class", "")
+            if class_path:
+                parts = class_path.rsplit(".", 1)
+                if len(parts) == 2:
+                    _add(parts[0], parts[1])
+
+        # Import for unresolved defaults that use "Use default"
+        unresolved = spec.default_properties.get("_unresolved", {})
+        for key, meta in unresolved.items():
+            use_default_key = f"_use_default_{key}"
+            if node.properties.get(use_default_key, meta.get("has_default", False)):
+                default_module = meta.get("default_module", "")
+                default_class = meta.get("default_class", "")
+                if default_module and default_class:
+                    _add(default_module, default_class)
 
     # Always need PlasmaState if there's anything to build
     if graph.nodes:
@@ -303,7 +312,119 @@ def _emit_node(
             lines.append(f'    # TODO: connect field_request or parameter_vector')
         lines.append(f')')
 
+    else:
+        # Generic emitter for auto-generated nodes
+        lines.extend(_emit_auto_node(node, var, var_names, graph, comments))
+
     return lines
+
+
+def _emit_auto_node(
+    node: NodeModel,
+    var: str,
+    var_names: dict[str, str],
+    graph: GraphModel,
+    comments: bool,
+) -> list[str]:
+    """Emit constructor call for an auto-generated node."""
+    lines: list[str] = []
+    spec = node.spec
+    props = node.properties
+    unresolved_meta = props.get("_unresolved", spec.default_properties.get("_unresolved", {}))
+
+    # Build argument list from the spec's input ports and config properties
+    args: list[str] = []
+
+    # Iterate over input ports (in spec order)
+    for port in spec.input_ports:
+        edge = _find_input_edge(graph, node.id, port.name)
+        if edge:
+            args.append(f"    {port.name}={var_names[edge.source_node_id]},")
+        elif not port.required:
+            pass  # skip optional unconnected ports
+        else:
+            args.append(f"    {port.name}=None,  # TODO: connect {port.name}")
+
+    # Iterate over config properties (in spec order)
+    for key, default_val in spec.default_properties.items():
+        if key in ("_class", "_unresolved", "name"):
+            continue
+
+        # Check if this is an unresolved type
+        if key in unresolved_meta:
+            meta = unresolved_meta[key]
+            use_default_key = f"_use_default_{key}"
+            if props.get(use_default_key, meta.get("has_default", False)):
+                # Use the class default — emit the repr
+                default_repr = meta.get("default_repr", "None")
+                args.append(f"    {key}={default_repr},")
+            else:
+                val = props.get(key, "")
+                if val:
+                    args.append(f"    {key}={val},")
+                else:
+                    type_name = meta.get("type_name", "?")
+                    args.append(f"    # {key}: {type_name}  # TODO: assign value")
+        elif isinstance(default_val, str):
+            val = props.get(key, default_val)
+            args.append(f'    {key}="{val}",')
+        elif isinstance(default_val, (int, float)):
+            val = props.get(key, default_val)
+            args.append(f"    {key}={val},")
+        elif isinstance(default_val, tuple):
+            val = props.get(key, default_val)
+            args.append(f"    {key}={val},")
+
+    # Check if "name" is in the spec's init signature (not just our GUI name prop)
+    # For prior classes and others, "name" is the first positional arg
+    has_name_param = any(
+        key == "name" and key not in ("_class", "_unresolved")
+        for key in spec.default_properties
+    )
+
+    class_name = node.type_id
+    if has_name_param:
+        name_val = props.get("name", var)
+        lines.append(f'{var} = {class_name}(')
+        lines.append(f'    "{name_val}",')
+    else:
+        lines.append(f'{var} = {class_name}(')
+
+    lines.extend(args)
+    lines.append(f')')
+    return lines
+
+
+def _dependency_order(graph: GraphModel) -> list[NodeModel]:
+    """Topological sort: each node appears after all nodes connected to its inputs."""
+    # Build adjacency: for each node, which nodes must come before it?
+    dependencies: dict[str, set[str]] = {nid: set() for nid in graph.nodes}
+    for edge in graph.edges:
+        if edge.target_node_id in dependencies:
+            dependencies[edge.target_node_id].add(edge.source_node_id)
+
+    # Kahn's algorithm
+    ordered: list[NodeModel] = []
+    in_degree = {nid: len(deps) for nid, deps in dependencies.items()}
+    queue = [nid for nid, deg in in_degree.items() if deg == 0]
+
+    while queue:
+        queue.sort()  # deterministic order for nodes at same depth
+        nid = queue.pop(0)
+        ordered.append(graph.nodes[nid])
+        for other_nid, deps in dependencies.items():
+            if nid in deps:
+                in_degree[other_nid] -= 1
+                if in_degree[other_nid] == 0:
+                    queue.append(other_nid)
+
+    # Any remaining nodes (cycles) get appended at the end
+    seen = {n.id for n in ordered}
+    for node in graph.nodes.values():
+        if node.id not in seen:
+            ordered.append(node)
+
+    return ordered
 
 
 def _find_input_edge(graph: GraphModel, node_id: str, port_name: str) -> Edge | None:

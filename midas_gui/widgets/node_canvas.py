@@ -128,7 +128,8 @@ class NodeItem(QGraphicsRectItem):
         self.canvas = canvas
         spec = node_model.spec
 
-        n_inputs = len(spec.input_ports)
+        input_specs = node_model.effective_input_ports
+        n_inputs = len(input_specs)
         n_outputs = len(spec.output_ports)
         n_ports = max(n_inputs, n_outputs, 1)
         full_header = self.TYPE_HEADER_H + self.NAME_ROW_H
@@ -160,7 +161,7 @@ class NodeItem(QGraphicsRectItem):
             in_w = 0.0
             out_w = 0.0
             if i < n_inputs:
-                in_w = _port_col_width(spec.input_ports[i])
+                in_w = _port_col_width(input_specs[i])
             if i < n_outputs:
                 out_w = _port_col_width(spec.output_ports[i])
             row_width = (
@@ -229,7 +230,7 @@ class NodeItem(QGraphicsRectItem):
         port_type_h = type_fm.height()
         stack_h = port_name_h + self.PORT_LINE_GAP + port_type_h
 
-        for i, port_spec in enumerate(spec.input_ports):
+        for i, port_spec in enumerate(input_specs):
             port = PortItem(port_spec, self, i)
             port.setParentItem(self)
             y = full_header + PORT_MARGIN_TOP + i * PORT_SPACING + PORT_SPACING / 2
@@ -291,6 +292,7 @@ class NodeItem(QGraphicsRectItem):
             port._type_label = type_lbl
 
         # ── Endpoint bar (nodes with no output ports) ──────────
+        self._endpoint_bar = None
         if not spec.output_ports:
             bar_width = 4
             bar = QGraphicsRectItem(
@@ -302,10 +304,161 @@ class NodeItem(QGraphicsRectItem):
             bar_color.setAlphaF(0.6)
             bar.setBrush(QBrush(bar_color))
             bar.setZValue(1)
+            self._endpoint_bar = bar
 
     def update_title(self):
         var_name = self.node_model.properties.get("name") or ""
         self._name_label.setPlainText(var_name)
+
+    def rebuild_ports(self):
+        """Tear down and recreate all port graphics from effective_input_ports."""
+        from PySide6.QtGui import QFontMetricsF
+
+        # Remove old port items and their labels
+        for port in list(self.input_ports.values()):
+            if port._label:
+                self.scene().removeItem(port._label)
+            if port._type_label:
+                self.scene().removeItem(port._type_label)
+            self.scene().removeItem(port)
+        for port in list(self.output_ports.values()):
+            if port._label:
+                self.scene().removeItem(port._label)
+            if port._type_label:
+                self.scene().removeItem(port._type_label)
+            self.scene().removeItem(port)
+        self.input_ports.clear()
+        self.output_ports.clear()
+        self._port_labels.clear()
+
+        # Remove endpoint bar if present
+        if hasattr(self, '_endpoint_bar') and self._endpoint_bar:
+            self.scene().removeItem(self._endpoint_bar)
+            self._endpoint_bar = None
+
+        spec = self.node_model.spec
+        input_specs = self.node_model.effective_input_ports
+        output_specs = spec.output_ports
+
+        n_inputs = len(input_specs)
+        n_outputs = len(output_specs)
+        n_ports = max(n_inputs, n_outputs, 1)
+        full_header = self.TYPE_HEADER_H + self.NAME_ROW_H
+        body_height = PORT_MARGIN_TOP + n_ports * PORT_SPACING + 8
+        total_height = full_header + body_height
+
+        # Recalculate width
+        fm = QFontMetricsF(self.PORT_FONT)
+        type_fm = QFontMetricsF(self.PORT_TYPE_FONT)
+        title_fm = QFontMetricsF(self.TITLE_FONT)
+        name_fm = QFontMetricsF(self.NAME_FONT)
+        node_type_fm = QFontMetricsF(self.NODE_TYPE_FONT)
+
+        header_type_width = max(
+            title_fm.horizontalAdvance(spec.display_name) + 24,
+            node_type_fm.horizontalAdvance(spec.display_name) + 24,
+        )
+        var_name = self.node_model.properties.get("name") or ""
+        name_label_width = name_fm.horizontalAdvance(var_name) + 24
+
+        def _port_col_width(port_spec):
+            nw = fm.horizontalAdvance(port_spec.name)
+            tw = type_fm.horizontalAdvance(port_spec.type_label)
+            return max(nw, tw)
+
+        max_row_width = 0.0
+        for i in range(n_ports):
+            in_w = _port_col_width(input_specs[i]) if i < n_inputs else 0.0
+            out_w = _port_col_width(output_specs[i]) if i < n_outputs else 0.0
+            row_width = self.PORT_PAD + in_w + self.LABEL_GAP + out_w + self.PORT_PAD
+            max_row_width = max(max_row_width, row_width)
+
+        node_width = max(NODE_WIDTH, max_row_width, header_type_width, name_label_width)
+        self._node_width = node_width
+
+        # Resize the node rect
+        self.setRect(0, 0, node_width, total_height)
+
+        # Resize header and subtitle bars
+        self._header.setRect(0, 0, node_width, self.TYPE_HEADER_H)
+        self._type_bg.setRect(0, self.TYPE_HEADER_H, node_width, self.NAME_ROW_H)
+
+        # Recreate ports
+        port_name_h = fm.height()
+        port_type_h = type_fm.height()
+        stack_h = port_name_h + self.PORT_LINE_GAP + port_type_h
+
+        for i, port_spec in enumerate(input_specs):
+            port = PortItem(port_spec, self, i)
+            port.setParentItem(self)
+            y = full_header + PORT_MARGIN_TOP + i * PORT_SPACING + PORT_SPACING / 2
+            port.setPos(0, y)
+            self.input_ports[port_spec.name] = port
+
+            top_y = y - stack_h / 2
+
+            label = QGraphicsTextItem(port_spec.name, self)
+            label.setDefaultTextColor(QColor(THEME.text_primary))
+            label.setFont(self.PORT_FONT)
+            label.document().setDocumentMargin(0)
+            label.setPos(self.PORT_PAD, top_y)
+            label.setZValue(2)
+            self._port_labels.append(label)
+            port._label = label
+
+            type_lbl = QGraphicsTextItem(port_spec.type_label, self)
+            type_lbl.setDefaultTextColor(QColor(THEME.text_secondary))
+            type_lbl.setFont(self.PORT_TYPE_FONT)
+            type_lbl.document().setDocumentMargin(0)
+            type_lbl.setPos(self.PORT_PAD, top_y + port_name_h + self.PORT_LINE_GAP)
+            type_lbl.setZValue(2)
+            self._port_labels.append(type_lbl)
+            port._type_label = type_lbl
+
+        for i, port_spec in enumerate(output_specs):
+            port = PortItem(port_spec, self, i)
+            port.setParentItem(self)
+            y = full_header + PORT_MARGIN_TOP + i * PORT_SPACING + PORT_SPACING / 2
+            port.setPos(node_width, y)
+            self.output_ports[port_spec.name] = port
+
+            top_y = y - stack_h / 2
+
+            label = QGraphicsTextItem(port_spec.name, self)
+            label.setDefaultTextColor(QColor(THEME.text_primary))
+            label.setFont(self.PORT_FONT)
+            label.document().setDocumentMargin(0)
+            label.setZValue(2)
+            nw = fm.horizontalAdvance(port_spec.name)
+            label.setPos(node_width - self.PORT_PAD - nw, top_y)
+            self._port_labels.append(label)
+            port._label = label
+
+            type_lbl = QGraphicsTextItem(port_spec.type_label, self)
+            type_lbl.setDefaultTextColor(QColor(THEME.text_secondary))
+            type_lbl.setFont(self.PORT_TYPE_FONT)
+            type_lbl.document().setDocumentMargin(0)
+            type_lbl.setZValue(2)
+            tw = type_fm.horizontalAdvance(port_spec.type_label)
+            type_lbl.setPos(node_width - self.PORT_PAD - tw,
+                            top_y + port_name_h + self.PORT_LINE_GAP)
+            self._port_labels.append(type_lbl)
+            port._type_label = type_lbl
+
+        # Endpoint bar
+        if not output_specs:
+            category_color = CATEGORY_COLORS.get(spec.category, THEME.accent_secondary)
+            bar_width = 4
+            bar = QGraphicsRectItem(
+                node_width - bar_width, full_header,
+                bar_width, total_height - full_header, self
+            )
+            bar.setPen(QPen(Qt.PenStyle.NoPen))
+            bar_color = QColor(category_color)
+            bar_color.setAlphaF(0.6)
+            bar.setBrush(QBrush(bar_color))
+            bar.setZValue(1)
+            self._endpoint_bar = bar
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
@@ -486,6 +639,49 @@ class NodeCanvas(QGraphicsView):
     def update_wires_for_node(self, node_item: NodeItem):
         node_id = node_item.node_model.id
         for wire in self.wire_items:
+            if wire.edge.source_node_id == node_id or wire.edge.target_node_id == node_id:
+                wire.update_path()
+
+    def rebuild_node_ports(self, node_id: str):
+        """Rebuild ports for a node after its dynamic port set has changed.
+
+        Removes wires connected to ports that no longer exist, then
+        rebuilds the visual port items and reconnects surviving wires.
+        """
+        node_item = self.node_items.get(node_id)
+        if not node_item:
+            return
+
+        node_model = node_item.node_model
+        # Determine which port names will exist after rebuild
+        new_input_names = {p.name for p in node_model.effective_input_ports}
+        new_output_names = {p.name for p in node_model.spec.output_ports}
+
+        # Remove wires connected to ports that are being removed
+        wires_to_remove = []
+        for wire in self.wire_items:
+            if wire.edge.target_node_id == node_id and wire.edge.target_port_name not in new_input_names:
+                wires_to_remove.append(wire)
+            elif wire.edge.source_node_id == node_id and wire.edge.source_port_name not in new_output_names:
+                wires_to_remove.append(wire)
+        for wire in wires_to_remove:
+            self._remove_wire(wire)
+
+        # Rebuild the visual ports
+        node_item.rebuild_ports()
+
+        # Reconnect surviving wires to the new port items
+        for wire in self.wire_items:
+            if wire.edge.source_node_id == node_id:
+                new_port = node_item.output_ports.get(wire.edge.source_port_name)
+                if new_port:
+                    wire.source_port = new_port
+                    new_port.connected = True
+            if wire.edge.target_node_id == node_id:
+                new_port = node_item.input_ports.get(wire.edge.target_port_name)
+                if new_port:
+                    wire.target_port = new_port
+                    new_port.connected = True
             if wire.edge.source_node_id == node_id or wire.edge.target_node_id == node_id:
                 wire.update_path()
 

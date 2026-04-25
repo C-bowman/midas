@@ -114,8 +114,9 @@ def _register(*specs: NodeTypeSpec):
         NODE_TYPES[spec.type_id] = spec
 
 
+# ── Hard-coded utility nodes (not ABC subclasses) ───────────────────────
+
 _register(
-    # Parameters & Data
     _make_spec(
         "ParameterVector", "ParameterVector", "Parameters & Data",
         [],
@@ -143,39 +144,6 @@ _register(
         [("field_request", PortType.FIELD_REQUEST)],
         {"name": ""},
     ),
-    # Field Models
-    _make_spec(
-        "PiecewiseLinearField", "PiecewiseLinearField", "Field Models",
-        [("axis", PortType.ARRAY)],
-        [("field", PortType.FIELD)],
-        {"name": "", "field_name": "", "axis_name": "psi"},
-    ),
-    _make_spec(
-        "CubicSplineField", "CubicSplineField", "Field Models",
-        [("axis", PortType.ARRAY)],
-        [("field", PortType.FIELD)],
-        {"name": "", "field_name": "", "axis_name": "psi"},
-    ),
-    # Diagnostic Models
-    _make_spec(
-        "LinearDiagnosticModel", "LinearDiagnosticModel", "Diagnostic Models",
-        [
-            ("field", PortType.FIELD_REQUEST),
-            ("model_matrix", PortType.ARRAY),
-        ],
-        [("diagnostic_model", PortType.DIAGNOSTIC_MODEL)],
-        {"name": ""},
-    ),
-    # Likelihoods
-    _make_spec(
-        "GaussianLikelihood", "GaussianLikelihood", "Likelihoods",
-        [
-            ("y_data", PortType.ARRAY),
-            ("sigma", (PortType.ARRAY, PortType.UNCERTAINTIES), False),
-        ],
-        [("likelihood", PortType.LIKELIHOOD)],
-        {"name": ""},
-    ),
     _make_spec(
         "DiagnosticLikelihood", "DiagnosticLikelihood", "Likelihoods",
         [
@@ -185,26 +153,23 @@ _register(
         [],
         {"name": ""},
     ),
-    # Uncertainty Models
-    _make_spec(
-        "ConstantUncertainty", "ConstantUncertainty", "Uncertainty Models",
-        [],
-        [("uncertainties", PortType.UNCERTAINTIES)],
-        {"name": "", "n_data": 1, "parameter_name": ""},
-    ),
-    # Priors
-    _make_spec(
-        "GaussianPrior", "GaussianPrior", "Priors",
-        [
-            ("mean", PortType.ARRAY),
-            ("standard_deviation", PortType.ARRAY),
-            ("field_request", PortType.FIELD_REQUEST, False),
-            ("parameter_vector", PortType.PARAMS, False),
-        ],
-        [],
-        {"name": ""},
-    ),
 )
+
+
+# ── Auto-discovered ABC subclass nodes ──────────────────────────────────
+
+def _discover_and_register():
+    """Import MIDAS modules and register auto-generated node specs."""
+    try:
+        from midas_gui.introspection import discover_builtin_nodes
+        specs = discover_builtin_nodes()
+        for type_id, spec in specs.items():
+            if type_id not in NODE_TYPES:  # don't overwrite hard-coded
+                NODE_TYPES[type_id] = spec
+    except Exception:
+        pass  # MIDAS not installed or import error — GUI still works with hard-coded nodes
+
+_discover_and_register()
 
 
 # ── Runtime graph model ─────────────────────────────────────────────────
@@ -220,6 +185,18 @@ class NodeModel:
     @property
     def spec(self) -> NodeTypeSpec:
         return NODE_TYPES[self.type_id]
+
+    @property
+    def effective_input_ports(self) -> tuple[PortSpec, ...]:
+        """Input ports including any dynamic ports derived from properties."""
+        if self.type_id == "Coordinates":
+            coord_names = self.properties.get("coordinate_names", [])
+            dynamic = tuple(
+                PortSpec(name, (PortType.ARRAY,), PortDirection.INPUT)
+                for name in coord_names
+            )
+            return self.spec.input_ports + dynamic
+        return self.spec.input_ports
 
 
 @dataclass(frozen=True)
@@ -276,7 +253,7 @@ class GraphModel:
             return False
 
         src_port = self._find_port(src_node.spec.output_ports, source_port_name)
-        tgt_port = self._find_port(tgt_node.spec.input_ports, target_port_name)
+        tgt_port = self._find_port(tgt_node.effective_input_ports, target_port_name)
         if not src_port or not tgt_port:
             return False
 
@@ -321,7 +298,7 @@ class GraphModel:
         """Return a list of validation error messages."""
         errors = []
         for node in self.nodes.values():
-            for port in node.spec.input_ports:
+            for port in node.effective_input_ports:
                 if not port.required:
                     continue
                 connected = any(
