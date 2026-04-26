@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QLabel,
+    QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QLabel, QLineEdit,
 )
 from PySide6.QtCore import Qt, QMimeData
 from PySide6.QtGui import QDrag, QColor
@@ -25,6 +25,12 @@ class NodePalette(QWidget):
             f"font-weight: bold; font-size: 12px; color: {THEME.text_primary}; padding: 4px;"
         )
         layout.addWidget(header)
+
+        self._search = QLineEdit()
+        self._search.setPlaceholderText("Search nodes…")
+        self._search.setClearButtonEnabled(True)
+        self._search.textChanged.connect(self._filter_tree)
+        layout.addWidget(self._search)
 
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
@@ -69,6 +75,21 @@ class NodePalette(QWidget):
         self.tree.clear()
         self._build_tree()
         self.tree.expandAll()
+        self._filter_tree(self._search.text())
+
+    def _filter_tree(self, text: str):
+        """Show only nodes whose name contains the search text."""
+        query = text.strip().lower()
+        for i in range(self.tree.topLevelItemCount()):
+            cat_item = self.tree.topLevelItem(i)
+            any_visible = False
+            for j in range(cat_item.childCount()):
+                child = cat_item.child(j)
+                visible = not query or query in child.text(0).lower()
+                child.setHidden(not visible)
+                if visible:
+                    any_visible = True
+            cat_item.setHidden(not any_visible)
 
     def _start_drag(self, supported_actions):
         item = self.tree.currentItem()

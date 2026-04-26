@@ -6,6 +6,9 @@ from PySide6.QtCore import Qt
 
 @dataclass(frozen=True)
 class ThemeColors:
+    # Meta
+    name: str = "Deep Ocean"
+
     # Backgrounds
     bg_base: str = "#0F111A"
     bg_surface: str = "#1A1C2A"
@@ -40,16 +43,90 @@ class ThemeColors:
     selected_border: str = "#84FFFF"
 
 
-THEME = ThemeColors()
+DEEP_OCEAN = ThemeColors()
 
-CATEGORY_COLORS = {
-    "Parameters & Data": THEME.node_parameters,
-    "Field Models": THEME.node_field_models,
-    "Diagnostic Models": THEME.node_diagnostic_models,
-    "Likelihoods": THEME.node_likelihoods,
-    "Priors": THEME.node_priors,
-    "Uncertainty Models": THEME.node_uncertainties,
+DARK_2026 = ThemeColors(
+    name="VSCode Dark",
+    bg_base="#1E1E1E",
+    bg_surface="#252526",
+    bg_elevated="#2D2D2D",
+    border="#3E3E3E",
+    text_primary="#D4D4D4",
+    text_secondary="#808080",
+    accent_primary="#569CD6",
+    accent_secondary="#4FC1FF",
+    success="#6A9955",
+    warning="#CCA700",
+    error="#F44747",
+    node_parameters="#C586C0",
+    node_field_models="#4FC1FF",
+    node_diagnostic_models="#9CDCFE",
+    node_likelihoods="#6A9955",
+    node_priors="#DCDCAA",
+    node_uncertainties="#CE9178",
+    canvas_grid="#3E3E3E",
+    wire_color="#4FC1FF",
+    wire_opacity=0.8,
+    selected_border="#569CD6",
+)
+
+LIGHT_2026 = ThemeColors(
+    name="VSCode Light",
+    bg_base="#FFFFFF",
+    bg_surface="#F3F3F3",
+    bg_elevated="#ECECEC",
+    border="#CECECE",
+    text_primary="#1E1E1E",
+    text_secondary="#6A6A6A",
+    accent_primary="#005FB8",
+    accent_secondary="#0078D4",
+    success="#388A34",
+    warning="#BF8803",
+    error="#CD3131",
+    node_parameters="#AF00DB",
+    node_field_models="#0078D4",
+    node_diagnostic_models="#267F99",
+    node_likelihoods="#388A34",
+    node_priors="#795E26",
+    node_uncertainties="#A31515",
+    canvas_grid="#E0E0E0",
+    wire_color="#0078D4",
+    wire_opacity=0.85,
+    selected_border="#005FB8",
+)
+
+THEMES: dict[str, ThemeColors] = {
+    "Deep Ocean": DEEP_OCEAN,
+    "VSCode Dark": DARK_2026,
+    "VSCode Light": LIGHT_2026,
 }
+
+THEME: ThemeColors = DEEP_OCEAN
+
+CATEGORY_COLORS: dict[str, str] = {}
+
+
+def _rebuild_category_colors():
+    """Rebuild CATEGORY_COLORS from the current THEME."""
+    CATEGORY_COLORS.clear()
+    CATEGORY_COLORS.update({
+        "Parameters & Data": THEME.node_parameters,
+        "Field Models": THEME.node_field_models,
+        "Diagnostic Models": THEME.node_diagnostic_models,
+        "Likelihoods": THEME.node_likelihoods,
+        "Priors": THEME.node_priors,
+        "Uncertainty Models": THEME.node_uncertainties,
+    })
+
+
+_rebuild_category_colors()
+
+
+def set_theme(name: str):
+    """Set the active theme by name. Must be called before apply_theme."""
+    global THEME
+    THEME = THEMES.get(name, DEEP_OCEAN)
+    _rebuild_category_colors()
 
 
 def apply_theme(app: QApplication):

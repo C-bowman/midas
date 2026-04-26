@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QDockWidget, QMenuBar, QStatusBar, QFileDialog, QMessageBox,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QAction
+from PySide6.QtGui import QKeySequence, QAction, QCloseEvent
 
 from midas_gui.session import GraphModel, NODE_TYPES
 from midas_gui.settings import Settings, SettingsDialog
@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
 
         self._current_file: str | None = None
         self._imported_modules: list[str] = []
+        self._dirty = False
 
         # Data model
         self.graph = GraphModel()
@@ -67,6 +68,7 @@ class MainWindow(QMainWindow):
 
         # Connect signals
         self.canvas.node_selection_changed.connect(self._on_selection_changed)
+        self.canvas.graph_modified.connect(self._on_graph_modified)
         self.props_panel.node_updated.connect(self._on_node_updated)
         self.props_panel.ports_changed.connect(self._on_ports_changed)
 
@@ -117,14 +119,33 @@ class MainWindow(QMainWindow):
         self.code_preview.refresh()
 
     def _on_node_updated(self, node_id: str):
+        self._dirty = True
         node_item = self.canvas.node_items.get(node_id)
         if node_item:
             node_item.update_title()
         self.code_preview.refresh()
 
     def _on_ports_changed(self, node_id: str):
+        self._dirty = True
         self.canvas.rebuild_node_ports(node_id)
         self.code_preview.refresh()
+
+    def _on_graph_modified(self):
+        self._dirty = True
+        self.code_preview.refresh()
+
+    def closeEvent(self, event: QCloseEvent):
+        if self._dirty and self.graph.nodes:
+            reply = QMessageBox.question(
+                self, "Unsaved Changes",
+                "You have unsaved changes. Are you sure you want to exit?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+        event.accept()
 
     # ── Save / Load ────────────────────────────────────────────
 
@@ -161,6 +182,7 @@ class MainWindow(QMainWindow):
         self._load_graph(graph)
         self._imported_modules = list(imported_modules)
         self._current_file = path
+        self._dirty = False
         self._update_title()
         self.palette_widget.refresh()
         self.statusBar().showMessage(f"Opened {path}")
@@ -196,6 +218,7 @@ class MainWindow(QMainWindow):
 
         try:
             save_session(self.graph, path, self._imported_modules)
+            self._dirty = False
             self.statusBar().showMessage(f"Saved to {path}")
         except Exception as exc:
             QMessageBox.critical(self, "Save Failed", f"Could not save session:\n{exc}")

@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF, Signal
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QFont, QPainter,
     QWheelEvent, QMouseEvent, QDragEnterEvent, QDropEvent,
+    QKeyEvent,
 )
 
 from midas_gui.session import (
@@ -504,9 +505,10 @@ class WireItem(QGraphicsPathItem):
 class TempWireItem(QGraphicsPathItem):
     """A temporary wire shown while the user is dragging from a port."""
 
-    def __init__(self, start_pos: QPointF):
+    def __init__(self, start_pos: QPointF, from_output: bool):
         super().__init__()
         self.start_pos = start_pos
+        self._from_output = from_output
         color = QColor(THEME.accent_primary)
         color.setAlphaF(0.6)
         self.setPen(QPen(color, 2, Qt.PenStyle.DashLine, Qt.PenCapStyle.RoundCap))
@@ -519,7 +521,12 @@ class TempWireItem(QGraphicsPathItem):
         path = QPainterPath(p1)
         dx = abs(p2.x() - p1.x()) * 0.5
         dx = max(dx, 50)
-        path.cubicTo(p1.x() + dx, p1.y(), p2.x() - dx, p2.y(), p2.x(), p2.y())
+        if self._from_output:
+            # Output port is on the right side of the node — curve goes right then left
+            path.cubicTo(p1.x() + dx, p1.y(), p2.x() - dx, p2.y(), p2.x(), p2.y())
+        else:
+            # Input port is on the left side of the node — curve goes left then right
+            path.cubicTo(p1.x() - dx, p1.y(), p2.x() + dx, p2.y(), p2.x(), p2.y())
         self.setPath(path)
 
 
@@ -527,6 +534,7 @@ class NodeCanvas(QGraphicsView):
     """The main node-graph canvas widget."""
 
     node_selection_changed = Signal()
+    graph_modified = Signal()
 
     def __init__(self, graph: GraphModel, parent=None):
         self._scene = QGraphicsScene(parent)
@@ -573,6 +581,7 @@ class NodeCanvas(QGraphicsView):
         item = NodeItem(node_model, self)
         self._scene.addItem(item)
         self.node_items[node_model.id] = item
+        self.graph_modified.emit()
         return item
 
     def remove_selected_nodes(self):
@@ -595,6 +604,7 @@ class NodeCanvas(QGraphicsView):
         self.node_items.pop(node_id, None)
         self.graph.remove_node(node_id)
         self.node_selection_changed.emit()
+        self.graph_modified.emit()
 
     # ── Wire management ────────────────────────────────────────
 
@@ -614,6 +624,7 @@ class NodeCanvas(QGraphicsView):
         self.wire_items.append(wire)
         src_port.connected = True
         tgt_port.connected = True
+        self.graph_modified.emit()
         return wire
 
     def _remove_wire(self, wire: WireItem):
@@ -622,6 +633,7 @@ class NodeCanvas(QGraphicsView):
         self.wire_items.remove(wire)
         self._update_port_connected_state(wire.source_port)
         self._update_port_connected_state(wire.target_port)
+        self.graph_modified.emit()
 
     def _update_port_connected_state(self, port: PortItem):
         node_id = port.node_item.node_model.id
@@ -737,7 +749,8 @@ class NodeCanvas(QGraphicsView):
     def _start_wire_drag(self, port: PortItem, event):
         self._drag_source_port = port
         start = port.center_scene_pos()
-        self._temp_wire = TempWireItem(start)
+        from_output = port.spec.direction == PortDirection.OUTPUT
+        self._temp_wire = TempWireItem(start, from_output)
         self._scene.addItem(self._temp_wire)
         self._highlight_compatible_ports(port)
 
@@ -919,3 +932,44 @@ class NodeCanvas(QGraphicsView):
             if item.isSelected():
                 return item
         return None
+
+    # ── Keyboard shortcuts ─────────────────────────────────────
+
+    def keyPressEvent(self, event: QKeyEvent):
+        key = event.key()
+        modifiers = event.modifiers()
+
+        if key in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            self.remove_selected_nodes()
+            return
+        if key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
+            for item in self.node_items.values():
+                item.setSelected(True)
+            return
+        if key == Qt.Key.Key_D and modifiers & Qt.KeyboardModifier.ControlModifier:
+            self.duplicate_selected_node()
+            return
+        if key == Qt.Key.Key_Escape:
+            for item in self.node_items.values():
+                item.setSelected(False)
+            return
+
+        super().keyPressEvent(event)
+
+    def duplicate_selected_node(self):
+        """Duplicate the currently selected node, offset slightly."""
+        source_item = self.selected_node_item()
+        if not source_item:
+            return
+        source = source_item.node_model
+        new_item = self.add_node(
+            source.type_id,
+            source.x + 30,
+            source.y + 30,
+        )
+        # Copy properties (except auto-generated name)
+        for key, val in source.properties.items():
+            if key == "name":
+                continue
+            new_item.node_model.properties[key] = val
+        new_item.update_title()

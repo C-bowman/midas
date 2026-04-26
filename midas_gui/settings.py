@@ -3,10 +3,10 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QSpinBox,
-    QDialogButtonBox, QLabel, QGroupBox,
+    QDialogButtonBox, QLabel, QGroupBox, QComboBox, QMessageBox,
 )
 
-from midas_gui.theme import THEME
+from midas_gui.theme import THEMES
 
 _DEFAULTS = {
     "font_size/palette": 10,
@@ -54,6 +54,14 @@ class Settings(QObject):
     def code_preview_font_size(self, value: int):
         self._set("font_size/code_preview", value)
 
+    @property
+    def theme_name(self) -> str:
+        return str(self._qs.value("theme/name", "Deep Ocean"))
+
+    @theme_name.setter
+    def theme_name(self, value: str):
+        self._qs.setValue("theme/name", value)
+
 
 class SettingsDialog(QDialog):
     """Modal dialog for editing application settings."""
@@ -65,6 +73,18 @@ class SettingsDialog(QDialog):
         self._settings = settings
 
         layout = QVBoxLayout(self)
+
+        # Theme group
+        theme_group = QGroupBox("Appearance")
+        theme_form = QFormLayout(theme_group)
+
+        self._theme_combo = QComboBox()
+        for name in THEMES:
+            self._theme_combo.addItem(name)
+        self._theme_combo.setCurrentText(settings.theme_name)
+        theme_form.addRow("Theme:", self._theme_combo)
+
+        layout.addWidget(theme_group)
 
         # Font sizes group
         group = QGroupBox("Font Sizes")
@@ -102,4 +122,13 @@ class SettingsDialog(QDialog):
         self._settings.properties_font_size = self._props_spin.value()
         self._settings.code_preview_font_size = self._code_spin.value()
         self._settings.font_size_changed.emit()
+
+        new_theme = self._theme_combo.currentText()
+        if new_theme != self._settings.theme_name:
+            self._settings.theme_name = new_theme
+            QMessageBox.information(
+                self, "Theme Changed",
+                "The new theme will be applied when you restart the application.",
+            )
+
         self.accept()

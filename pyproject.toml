@@ -41,3 +41,6 @@ tests = [
 gui = [
     "PySide6 >= 6.5",
 ]
+
+[project.gui-scripts]
+midas-gui = "midas_gui.app:run"
