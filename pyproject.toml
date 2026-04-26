@@ -3,7 +3,11 @@ requires = ["setuptools>=80.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["midas", "midas.priors", "midas.models", "midas.likelihoods"]
+packages = [
+    "midas", "midas.priors", "midas.models", "midas.likelihoods",
+    "midas_gui", "midas_gui.widgets", "midas_gui.codegen", "midas_gui.io",
+    "midas_gui.resources",
+]
 
 [project]
 name = "midas-fusion"

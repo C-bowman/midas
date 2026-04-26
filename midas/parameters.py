@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from numpy import ndarray
 
-type Coordinates = dict[str, ndarray]
+Coordinates = dict[str, ndarray]
 
 
 @dataclass
