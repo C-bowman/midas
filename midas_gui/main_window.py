@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
         if not path:
             return
 
-        from midas_gui.io.session_io import load_session, read_imported_modules
+        from midas_gui.session_io import load_session, read_imported_modules
         from midas_gui.introspection import discover_user_module
 
         # Re-import user modules BEFORE loading nodes so their types are registered
@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
         self._update_title()
 
     def _do_save(self, path: str):
-        from midas_gui.io.session_io import save_session
+        from midas_gui.session_io import save_session
 
         # Sync node positions from canvas items
         for node_id, item in self.canvas.node_items.items():

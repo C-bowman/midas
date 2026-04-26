@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor, QSyntaxHighlighter, QTextCharFormat
 
 from midas_gui.session import GraphModel
-from midas_gui.codegen.script_generator import generate_script
+from midas_gui.script_generator import generate_script
 from midas_gui.theme import THEME
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from midas_gui.codegen.script_generator import (
+from midas_gui.script_generator import (
     _dependency_order,
     _sanitize_var,
     generate_script,

@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pytest
 
-from midas_gui.io.session_io import (
+from midas_gui.session_io import (
     _clean_properties,
     load_session,
     read_imported_modules,
