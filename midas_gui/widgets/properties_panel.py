@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt, Signal
 from midas_gui.session import NodeModel, NODE_TYPES
 from midas_gui.theme import THEME
 from midas_gui.widgets.array_editor import ArrayEditor
+from midas_gui.settings import Settings
 
 
 class PropertiesPanel(QWidget):
@@ -18,8 +19,9 @@ class PropertiesPanel(QWidget):
     node_updated = Signal(str)  # emits node_id
     ports_changed = Signal(str)  # emits node_id when dynamic ports need rebuild
 
-    def __init__(self, parent=None):
+    def __init__(self, settings: Settings, parent=None):
         super().__init__(parent)
+        self._settings = settings
         self._node: NodeModel | None = None
         self._editors: dict[str, QWidget] = {}
 
@@ -47,6 +49,13 @@ class PropertiesPanel(QWidget):
         self._placeholder.setStyleSheet(f"color: {THEME.text_secondary}; padding: 16px;")
         self._placeholder.setWordWrap(True)
         self._form_layout.addRow(self._placeholder)
+
+        self._apply_font()
+        settings.font_size_changed.connect(self._apply_font)
+
+    def _apply_font(self):
+        from PySide6.QtGui import QFont
+        self._form_container.setFont(QFont("Segoe UI", self._settings.properties_font_size))
 
     def set_node(self, node: NodeModel | None):
         self._node = node

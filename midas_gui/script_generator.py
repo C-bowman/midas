@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from textwrap import dedent
+
 from midas_gui.session import GraphModel, NodeModel, Edge, NODE_TYPES
 
 # Hard-coded utility node type_ids — everything else uses generic emitter
@@ -16,7 +18,12 @@ _CATEGORY_ORDER = [
 ]
 
 
-def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = False) -> str:
+def generate_script(
+    graph: GraphModel,
+    runnable: bool = False,
+    comments: bool = False,
+    imported_modules: list[str] | None = None,
+) -> str:
     """Traverse the node graph and emit a valid MIDAS Python script."""
     lines: list[str] = []
     errors = graph.validate()
@@ -25,6 +32,21 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
         lines.append("# WARNING: The graph has validation errors:")
         for err in errors:
             lines.append(f"#   - {err}")
+        lines.append("")
+
+    # Add imported module directories to sys.path
+    if imported_modules:
+        from pathlib import PurePosixPath, PureWindowsPath
+        lines.append("import sys")
+        lines.append("# Add imported module directories to the path")
+        seen_dirs: set[str] = set()
+        for mod_path in imported_modules:
+            parent = str(PureWindowsPath(mod_path).parent)
+            # Normalise to forward slashes for cross-platform scripts
+            parent = parent.replace("\\", "/")
+            if parent not in seen_dirs:
+                seen_dirs.add(parent)
+                lines.append(f'sys.path.insert(0, "{parent}")')
         lines.append("")
 
     # Build variable name map: node_id -> python variable name
@@ -84,46 +106,49 @@ def generate_script(graph: GraphModel, runnable: bool = False, comments: bool = 
     ]
 
     if diag_likelihoods or priors or field_models:
-        lines.append("PlasmaState.build_posterior(")
-        lines.append(f"    diagnostics=[{', '.join(diag_likelihoods)}],")
-        lines.append(f"    priors=[{', '.join(priors)}],")
-        lines.append(f"    field_models=[{', '.join(field_models)}],")
-        lines.append(")")
+        lines.extend(dedent(f"""\
+            PlasmaState.build_posterior(
+                diagnostics=[{', '.join(diag_likelihoods)}],
+                priors=[{', '.join(priors)}],
+                field_models=[{', '.join(field_models)}],
+            )""").splitlines())
 
     if runnable:
         lines.append("")
-        lines.append("")
         if comments:
+            lines.append("")
             lines.append("# ── Optimization ──────────────────────────────────────────")
             lines.append("# Uncomment and configure the section below to run optimization.")
-            lines.append("")
-        lines.append("# from scipy.optimize import minimize")
-        lines.append("# from midas import posterior")
-        lines.append("#")
-        lines.append("# theta0 = np.zeros(PlasmaState.n_params)")
-        lines.append("# result = minimize(")
-        lines.append("#     posterior.cost,")
-        lines.append("#     x0=theta0,")
-        lines.append("#     jac=posterior.cost_gradient,")
-        lines.append("#     method='L-BFGS-B',")
-        lines.append("#     bounds=PlasmaState.build_bounds(),")
-        lines.append("# )")
-        lines.append("# theta_map = result.x")
+        lines.extend(dedent("""\
+
+            # from scipy.optimize import minimize
+            # from midas import posterior
+            #
+            # theta0 = np.zeros(PlasmaState.n_params)
+            # result = minimize(
+            #     posterior.cost,
+            #     x0=theta0,
+            #     jac=posterior.cost_gradient,
+            #     method='L-BFGS-B',
+            #     bounds=PlasmaState.build_bounds(),
+            # )
+            # theta_map = result.x""").splitlines())
         lines.append("")
         if comments:
             lines.append("# ── MCMC Sampling ─────────────────────────────────────────")
             lines.append("# Uncomment and configure the section below to run sampling.")
-            lines.append("")
-        lines.append("# from inference.mcmc import HamiltonianChain")
-        lines.append("#")
-        lines.append("# chain = HamiltonianChain(")
-        lines.append("#     posterior=posterior.log_probability,")
-        lines.append("#     gradient=posterior.gradient,")
-        lines.append("#     start=theta_map,")
-        lines.append("# )")
-        lines.append("# chain.advance(5000)")
-        lines.append("# chain.burn = 1000")
-        lines.append("# samples = chain.get_sample()")
+        lines.extend(dedent("""\
+
+            # from inference.mcmc import HamiltonianChain
+            #
+            # chain = HamiltonianChain(
+            #     posterior=posterior.log_probability,
+            #     gradient=posterior.gradient,
+            #     start=theta_map,
+            # )
+            # chain.advance(5000)
+            # chain.burn = 1000
+            # samples = chain.get_sample()""").splitlines())
 
     return "\n".join(lines) + "\n"
 
@@ -202,7 +227,7 @@ def _emit_node(
     if node.type_id == "ParameterVector":
         name = props.get("name", var)
         size = props.get("size", 1)
-        lines.append(f'{var} = ParameterVector("{name}", {size})')
+        lines.append(f'{var} = ParameterVector(name="{name}", size={size})')
 
     elif node.type_id == "Array":
         config = props.get("values_config", {})
@@ -231,7 +256,12 @@ def _emit_node(
         axis_name = props.get("axis_name", "psi")
         axis_edge = _find_input_edge(graph, node.id, "axis")
         axis_var = var_names[axis_edge.source_node_id] if axis_edge else "np.linspace(0, 1, 10)  # TODO: connect axis"
-        lines.append(f'{var} = {node.type_id}("{field_name}", {axis_var}, "{axis_name}")')
+        lines.extend(dedent(f"""\
+            {var} = {node.type_id}(
+                field_name="{field_name}",
+                axis={axis_var},
+                axis_name="{axis_name}",
+            )""").splitlines())
 
     elif node.type_id == "Coordinates":
         coord_names = props.get("coordinate_names", [])
@@ -254,17 +284,22 @@ def _emit_node(
             src_node = graph.nodes.get(field_edge.source_node_id)
             if src_node:
                 fr_name = src_node.properties.get("field_name", "").strip() or var
-        lines.append(f'{var} = FieldRequest("{fr_name}", {coord_var})')
+        lines.extend(dedent(f"""\
+            {var} = FieldRequest(
+                name="{fr_name}",
+                coordinates={coord_var},
+            )""").splitlines())
 
     elif node.type_id == "LinearDiagnosticModel":
         field_edge = _find_input_edge(graph, node.id, "field")
         field_var = var_names[field_edge.source_node_id] if field_edge else "None  # TODO: connect field_request"
         matrix_edge = _find_input_edge(graph, node.id, "model_matrix")
         matrix_var = var_names[matrix_edge.source_node_id] if matrix_edge else "np.eye(10)  # TODO: connect model_matrix"
-        lines.append(f'{var} = LinearDiagnosticModel(')
-        lines.append(f'    field={field_var},')
-        lines.append(f'    model_matrix={matrix_var},')
-        lines.append(f')')
+        lines.extend(dedent(f"""\
+            {var} = LinearDiagnosticModel(
+                field={field_var},
+                model_matrix={matrix_var},
+            )""").splitlines())
 
     elif node.type_id == "ConstantUncertainty":
         n_data = props.get("n_data", 1)
@@ -288,7 +323,12 @@ def _emit_node(
         like_edge = _find_input_edge(graph, node.id, "likelihood")
         model_var = var_names[model_edge.source_node_id] if model_edge else "None  # TODO"
         like_var = var_names[like_edge.source_node_id] if like_edge else "None  # TODO"
-        lines.append(f'{var} = DiagnosticLikelihood({model_var}, {like_var}, name="{name}")')
+        lines.extend(dedent(f"""\
+            {var} = DiagnosticLikelihood(
+                diagnostic_model={model_var},
+                likelihood={like_var},
+                name="{name}",
+            )""").splitlines())
 
     elif node.type_id == "GaussianPrior":
         name = props.get("name", var)
@@ -301,7 +341,7 @@ def _emit_node(
         std_var = var_names[std_edge.source_node_id] if std_edge else "np.ones(1)  # TODO"
 
         lines.append(f'{var} = GaussianPrior(')
-        lines.append(f'    "{name}",')
+        lines.append(f'    name="{name}",')
         lines.append(f'    mean={mean_var},')
         lines.append(f'    standard_deviation={std_var},')
         if fr_edge:
@@ -309,8 +349,8 @@ def _emit_node(
         elif pv_edge:
             lines.append(f'    parameter_vector={var_names[pv_edge.source_node_id]},')
         else:
-            lines.append(f'    # TODO: connect field_request or parameter_vector')
-        lines.append(f')')
+            lines.append('    # TODO: connect field_request or parameter_vector')
+        lines.append(')')
 
     else:
         # Generic emitter for auto-generated nodes

@@ -120,7 +120,7 @@ class TestGenerateScriptParameterVector:
         pv.properties["name"] = "my_params"
         pv.properties["size"] = 5
         script = generate_script(g)
-        assert 'my_params = ParameterVector("my_params", 5)' in script
+        assert 'my_params = ParameterVector(name="my_params", size=5)' in script
 
     def test_import_added(self):
         g = GraphModel()
@@ -177,7 +177,9 @@ class TestGenerateScriptDiagnosticLikelihood:
         g.add_edge(gl.id, "likelihood", dl.id, "likelihood")
 
         script = generate_script(g)
-        assert "DiagnosticLikelihood(diag, like" in script
+        assert "DiagnosticLikelihood(" in script
+        assert "diagnostic_model=diag" in script
+        assert "likelihood=like" in script
 
     def test_import_added(self):
         g = GraphModel()
@@ -316,6 +318,47 @@ class TestGenerateScriptFlags:
         assert "scipy" not in script
 
 
+# ── generate_script: imported modules sys.path ─────────────────────────
+
+
+class TestGenerateScriptImportedModules:
+    def test_adds_sys_path_insert(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g, imported_modules=["/home/chris/models/custom.py"])
+        assert "import sys" in script
+        assert 'sys.path.insert(0, "/home/chris/models")' in script
+
+    def test_no_sys_path_without_modules(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g)
+        assert "sys.path.insert" not in script
+
+    def test_deduplicates_directories(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g, imported_modules=[
+            "/home/chris/models/a.py",
+            "/home/chris/models/b.py",
+        ])
+        assert script.count('sys.path.insert(0, "/home/chris/models")') == 1
+
+    def test_comment_present(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g, imported_modules=["/tmp/test.py"])
+        assert "# Add imported module directories to the path" in script
+
+    def test_path_before_imports(self):
+        g = GraphModel()
+        g.add_node("ParameterVector")
+        script = generate_script(g, imported_modules=["/tmp/models.py"])
+        sys_pos = script.index("sys.path.insert")
+        import_pos = script.index("from midas")
+        assert sys_pos < import_pos
+
+
 # ── generate_script: variable name deduplication ───────────────────────
 
 
@@ -342,3 +385,281 @@ class TestGenerateScriptValidation:
         script = generate_script(g)
         assert "# WARNING" in script
         assert "axis" in script
+
+
+# ── generate_script: FieldRequest ──────────────────────────────────────
+
+
+class TestGenerateScriptFieldRequest:
+    def test_basic_emission(self):
+        g = GraphModel()
+        arr = g.add_node("Array")
+        arr.properties["name"] = "basis"
+        arr.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        plf = g.add_node("PiecewiseLinearField")
+        plf.properties["name"] = "ne"
+        plf.properties["field_name"] = "ne"
+        g.add_edge(arr.id, "data", plf.id, "axis")
+
+        r = g.add_node("Array")
+        r.properties["name"] = "r_vals"
+        r.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 20}
+
+        coords = g.add_node("Coordinates")
+        coords.properties["name"] = "coords"
+        coords.properties["coordinate_names"] = ["R"]
+        g.add_edge(r.id, "data", coords.id, "R")
+
+        fr = g.add_node("FieldRequest")
+        fr.properties["name"] = "fr"
+        g.add_edge(plf.id, "field", fr.id, "field")
+        g.add_edge(coords.id, "coordinates", fr.id, "coordinates")
+
+        script = generate_script(g)
+        assert 'FieldRequest(' in script
+        assert 'name="ne"' in script
+        assert 'coordinates=coords' in script
+
+    def test_import_added(self):
+        g = GraphModel()
+        g.add_node("FieldRequest")
+        script = generate_script(g)
+        assert "FieldRequest" in script
+        assert "from midas.parameters import" in script
+
+
+# ── generate_script: PiecewiseLinearField ──────────────────────────────
+
+
+class TestGenerateScriptFieldModel:
+    def test_emission_with_axis(self):
+        g = GraphModel()
+        arr = g.add_node("Array")
+        arr.properties["name"] = "psi_grid"
+        arr.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 20}
+
+        plf = g.add_node("PiecewiseLinearField")
+        plf.properties["name"] = "ne"
+        plf.properties["field_name"] = "electron_density"
+        plf.properties["axis_name"] = "psi"
+        g.add_edge(arr.id, "data", plf.id, "axis")
+
+        script = generate_script(g)
+        assert 'ne = PiecewiseLinearField(' in script
+        assert 'field_name="electron_density"' in script
+        assert 'axis=psi_grid' in script
+        assert 'axis_name="psi"' in script
+
+    def test_unconnected_axis_shows_todo(self):
+        g = GraphModel()
+        plf = g.add_node("PiecewiseLinearField")
+        plf.properties["name"] = "ne"
+        plf.properties["field_name"] = "ne"
+        script = generate_script(g)
+        assert "TODO" in script
+
+
+# ── generate_script: LinearDiagnosticModel ─────────────────────────────
+
+
+class TestGenerateScriptLinearDiagnosticModel:
+    def test_emission_with_connections(self):
+        g = GraphModel()
+        fr = g.add_node("FieldRequest")
+        fr.properties["name"] = "fr"
+
+        mat = g.add_node("Array")
+        mat.properties["name"] = "matrix"
+        mat.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        dm = g.add_node("LinearDiagnosticModel")
+        dm.properties["name"] = "model"
+        g.add_edge(fr.id, "field_request", dm.id, "field")
+        g.add_edge(mat.id, "data", dm.id, "model_matrix")
+
+        script = generate_script(g)
+        assert "model = LinearDiagnosticModel(" in script
+        assert "field=fr," in script
+        assert "model_matrix=matrix," in script
+
+
+# ── generate_script: ConstantUncertainty ───────────────────────────────
+
+
+class TestGenerateScriptConstantUncertainty:
+    def test_basic_emission(self):
+        g = GraphModel()
+        cu = g.add_node("ConstantUncertainty")
+        cu.properties["name"] = "sigma_model"
+        cu.properties["n_data"] = 50
+        cu.properties["parameter_name"] = "sigma_te"
+        script = generate_script(g)
+        assert 'sigma_model = ConstantUncertainty(n_data=50, parameter_name="sigma_te")' in script
+
+    def test_default_parameter_name(self):
+        g = GraphModel()
+        cu = g.add_node("ConstantUncertainty")
+        cu.properties["name"] = "sigma"
+        cu.properties["parameter_name"] = ""
+        script = generate_script(g)
+        assert 'parameter_name="sigma_sigma"' in script
+
+
+# ── generate_script: GaussianLikelihood ────────────────────────────────
+
+
+class TestGenerateScriptGaussianLikelihood:
+    def test_with_array_sigma(self):
+        g = GraphModel()
+        data = g.add_node("Array")
+        data.properties["name"] = "y"
+        data.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        sigma = g.add_node("Array")
+        sigma.properties["name"] = "err"
+        sigma.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        gl = g.add_node("GaussianLikelihood")
+        gl.properties["name"] = "like"
+        g.add_edge(data.id, "data", gl.id, "y_data")
+        g.add_edge(sigma.id, "data", gl.id, "sigma")
+
+        script = generate_script(g)
+        assert "like = GaussianLikelihood(y_data=y, sigma=err)" in script
+
+    def test_with_uncertainty_model(self):
+        g = GraphModel()
+        data = g.add_node("Array")
+        data.properties["name"] = "y"
+        data.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        cu = g.add_node("ConstantUncertainty")
+        cu.properties["name"] = "unc"
+
+        gl = g.add_node("GaussianLikelihood")
+        gl.properties["name"] = "like"
+        g.add_edge(data.id, "data", gl.id, "y_data")
+        g.add_edge(cu.id, "uncertainties", gl.id, "sigma")
+
+        script = generate_script(g)
+        assert "like = GaussianLikelihood(y_data=y, sigma=unc)" in script
+
+    def test_without_sigma(self):
+        g = GraphModel()
+        data = g.add_node("Array")
+        data.properties["name"] = "y"
+        data.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        gl = g.add_node("GaussianLikelihood")
+        gl.properties["name"] = "like"
+        g.add_edge(data.id, "data", gl.id, "y_data")
+
+        script = generate_script(g)
+        assert "like = GaussianLikelihood(y_data=y)" in script
+        assert "sigma" not in script.split("like = GaussianLikelihood")[1].split("\n")[0]
+
+
+# ── generate_script: GaussianPrior ─────────────────────────────────────
+
+
+class TestGenerateScriptGaussianPrior:
+    def test_with_field_request(self):
+        g = GraphModel()
+        mean = g.add_node("Array")
+        mean.properties["name"] = "mu"
+        mean.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        std = g.add_node("Array")
+        std.properties["name"] = "sd"
+        std.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        fr = g.add_node("FieldRequest")
+        fr.properties["name"] = "fr"
+
+        gp = g.add_node("GaussianPrior")
+        gp.properties["name"] = "prior"
+        g.add_edge(mean.id, "data", gp.id, "mean")
+        g.add_edge(std.id, "data", gp.id, "standard_deviation")
+        g.add_edge(fr.id, "field_request", gp.id, "field_request")
+
+        script = generate_script(g)
+        assert "prior = GaussianPrior(" in script
+        assert 'name="prior"' in script
+        assert "mean=mu," in script
+        assert "standard_deviation=sd," in script
+        assert "field_request=fr," in script
+
+    def test_with_parameter_vector(self):
+        g = GraphModel()
+        mean = g.add_node("Array")
+        mean.properties["name"] = "mu"
+        mean.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        std = g.add_node("Array")
+        std.properties["name"] = "sd"
+        std.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        pv = g.add_node("ParameterVector")
+        pv.properties["name"] = "params"
+
+        gp = g.add_node("GaussianPrior")
+        gp.properties["name"] = "prior"
+        g.add_edge(mean.id, "data", gp.id, "mean")
+        g.add_edge(std.id, "data", gp.id, "standard_deviation")
+        g.add_edge(pv.id, "parameter_vector", gp.id, "parameter_vector")
+
+        script = generate_script(g)
+        assert "prior = GaussianPrior(" in script
+        assert "parameter_vector=params," in script
+        assert "field_request" not in script.split("GaussianPrior")[1].split(")")[0]
+
+    def test_without_either_shows_todo(self):
+        g = GraphModel()
+        mean = g.add_node("Array")
+        mean.properties["name"] = "mu"
+        mean.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        std = g.add_node("Array")
+        std.properties["name"] = "sd"
+        std.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
+
+        gp = g.add_node("GaussianPrior")
+        gp.properties["name"] = "prior"
+        g.add_edge(mean.id, "data", gp.id, "mean")
+        g.add_edge(std.id, "data", gp.id, "standard_deviation")
+
+        script = generate_script(g)
+        assert "TODO" in script
+
+
+# ── generate_script: build_posterior with multiple items ───────────────
+
+
+class TestGenerateScriptPosteriorMultiple:
+    def test_multiple_field_models(self):
+        g = GraphModel()
+        f1 = g.add_node("PiecewiseLinearField")
+        f1.properties["name"] = "ne"
+        f2 = g.add_node("PiecewiseLinearField")
+        f2.properties["name"] = "te"
+        script = generate_script(g)
+        assert "field_models=[ne, te]" in script
+
+    def test_multiple_priors(self):
+        g = GraphModel()
+        p1 = g.add_node("GaussianPrior")
+        p1.properties["name"] = "p1"
+        p2 = g.add_node("GaussianPrior")
+        p2.properties["name"] = "p2"
+        script = generate_script(g)
+        assert "priors=[p1, p2]" in script
+
+    def test_multiple_diagnostics(self):
+        g = GraphModel()
+        d1 = g.add_node("DiagnosticLikelihood")
+        d1.properties["name"] = "d1"
+        d2 = g.add_node("DiagnosticLikelihood")
+        d2.properties["name"] = "d2"
+        script = generate_script(g)
+        assert "diagnostics=[d1, d2]" in script

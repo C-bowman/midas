@@ -10,6 +10,7 @@ from PySide6.QtGui import QFont, QColor, QSyntaxHighlighter, QTextCharFormat
 from midas_gui.session import GraphModel
 from midas_gui.script_generator import generate_script
 from midas_gui.theme import THEME
+from midas_gui.settings import Settings
 
 
 class PythonHighlighter(QSyntaxHighlighter):
@@ -59,9 +60,10 @@ class PythonHighlighter(QSyntaxHighlighter):
 class CodePreview(QWidget):
     """Dockable panel showing the generated Python script."""
 
-    def __init__(self, graph: GraphModel, parent=None):
+    def __init__(self, graph: GraphModel, settings: Settings, parent=None):
         super().__init__(parent)
         self.graph = graph
+        self._settings = settings
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -93,18 +95,27 @@ class CodePreview(QWidget):
         # Code display
         self.text_edit = QPlainTextEdit()
         self.text_edit.setReadOnly(True)
-        self.text_edit.setFont(QFont("Cascadia Code", 10, weight=QFont.Weight.Normal))
-        if not QFont("Cascadia Code").exactMatch():
-            self.text_edit.setFont(QFont("Consolas", 10))
+        self._apply_code_font()
         layout.addWidget(self.text_edit)
 
         self._highlighter = PythonHighlighter(self.text_edit.document())
 
+        settings.font_size_changed.connect(self._apply_code_font)
+
+    def _apply_code_font(self):
+        size = self._settings.code_preview_font_size
+        font = QFont("Cascadia Code", size, weight=QFont.Weight.Normal)
+        if not QFont("Cascadia Code").exactMatch():
+            font = QFont("Consolas", size)
+        self.text_edit.setFont(font)
+
     def refresh(self):
+        imported = getattr(self.parent(), '_imported_modules', None) if self.parent() else None
         code = generate_script(
             self.graph,
             runnable=self.runnable_check.isChecked(),
             comments=self.comments_check.isChecked(),
+            imported_modules=imported,
         )
         self.text_edit.setPlainText(code)
 

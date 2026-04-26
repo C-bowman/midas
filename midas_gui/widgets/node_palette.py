@@ -8,13 +8,15 @@ from PySide6.QtGui import QDrag, QColor
 
 from midas_gui.session import NODE_TYPES
 from midas_gui.theme import THEME, CATEGORY_COLORS
+from midas_gui.settings import Settings
 
 
 class NodePalette(QWidget):
     """Left sidebar listing draggable node types grouped by category."""
 
-    def __init__(self, parent=None):
+    def __init__(self, settings: Settings, parent=None):
         super().__init__(parent)
+        self._settings = settings
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
 
@@ -35,6 +37,13 @@ class NodePalette(QWidget):
         self.tree.expandAll()
 
         self.tree.startDrag = self._start_drag
+
+        self._apply_font()
+        settings.font_size_changed.connect(self._apply_font)
+
+    def _apply_font(self):
+        from PySide6.QtGui import QFont
+        self.tree.setFont(QFont("Segoe UI", self._settings.palette_font_size))
 
     def _build_tree(self):
         categories: dict[str, QTreeWidgetItem] = {}

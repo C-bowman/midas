@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QAction
 
 from midas_gui.session import GraphModel, NODE_TYPES
+from midas_gui.settings import Settings, SettingsDialog
 from midas_gui.widgets.node_canvas import NodeCanvas
 from midas_gui.widgets.node_palette import NodePalette
 from midas_gui.widgets.properties_panel import PropertiesPanel
@@ -15,9 +16,10 @@ from midas_gui.theme import THEME
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, settings: Settings):
         super().__init__()
         self.resize(1400, 850)
+        self._settings = settings
 
         self._current_file: str | None = None
         self._imported_modules: list[str] = []
@@ -34,7 +36,7 @@ class MainWindow(QMainWindow):
         self.palette_dock.setAllowedAreas(
             Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
         )
-        self.palette_widget = NodePalette(self)
+        self.palette_widget = NodePalette(settings, self)
         self.palette_dock.setWidget(self.palette_widget)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.palette_dock)
 
@@ -43,7 +45,7 @@ class MainWindow(QMainWindow):
         self.props_dock.setAllowedAreas(
             Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
         )
-        self.props_panel = PropertiesPanel(self)
+        self.props_panel = PropertiesPanel(settings, self)
         self.props_dock.setWidget(self.props_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.props_dock)
 
@@ -52,7 +54,7 @@ class MainWindow(QMainWindow):
         self.code_dock.setAllowedAreas(
             Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea
         )
-        self.code_preview = CodePreview(self.graph, self)
+        self.code_preview = CodePreview(self.graph, settings, self)
         self.code_dock.setWidget(self.code_preview)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.code_dock)
 
@@ -94,6 +96,8 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction("Import Module…", self._import_module)
         file_menu.addAction("Export Script…", self._export_script)
+        file_menu.addSeparator()
+        file_menu.addAction("Settings…", self._open_settings)
         file_menu.addSeparator()
         file_menu.addAction("Exit", self.close)
 
@@ -264,3 +268,7 @@ class MainWindow(QMainWindow):
 
     def _export_script(self):
         self.code_preview._export()
+
+    def _open_settings(self):
+        dialog = SettingsDialog(self._settings, self)
+        dialog.exec()
