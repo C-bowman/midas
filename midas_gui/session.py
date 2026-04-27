@@ -118,25 +118,25 @@ def _register(*specs: NodeTypeSpec):
 
 _register(
     _make_spec(
-        "ParameterVector", "ParameterVector", "Parameters & Data",
+        "ParameterVector", "ParameterVector", "Parameters & Fields",
         [],
         [("parameter_vector", PortType.PARAMS)],
         {"name": "", "size": 1},
     ),
     _make_spec(
-        "Array", "Array", "Parameters & Data",
+        "Array", "Array", "Data & Inputs",
         [],
         [("data", PortType.ARRAY)],
         {"source_type": "file", "file_path": "", "values": None},
     ),
     _make_spec(
-        "Coordinates", "Coordinates", "Parameters & Data",
+        "Coordinates", "Coordinates", "Parameters & Fields",
         [],
         [("coordinates", PortType.COORDINATES)],
         {"name": "", "coordinate_names": []},
     ),
     _make_spec(
-        "FieldRequest", "FieldRequest", "Parameters & Data",
+        "FieldRequest", "FieldRequest", "Parameters & Fields",
         [
             ("field", PortType.FIELD),
             ("coordinates", PortType.COORDINATES),

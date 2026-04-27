@@ -109,6 +109,22 @@ class TestGenerateScriptArray:
         script = generate_script(g)
         assert 'np.loadtxt("values.csv", delimiter=",")' in script
 
+    def test_placeholder(self):
+        g = GraphModel()
+        arr = g.add_node("Array")
+        arr.properties["name"] = "data"
+        arr.properties["values_config"] = {"source": "placeholder"}
+        script = generate_script(g)
+        assert "data: np.ndarray" in script
+        assert "# TODO" in script
+
+    def test_placeholder_is_default(self):
+        g = GraphModel()
+        arr = g.add_node("Array")
+        arr.properties["name"] = "data"
+        script = generate_script(g)
+        assert "data: np.ndarray" in script
+
 
 # ── generate_script: ParameterVector ───────────────────────────────────
 
@@ -367,8 +383,10 @@ class TestGenerateScriptVarNames:
         g = GraphModel()
         a1 = g.add_node("Array")
         a1.properties["name"] = "data"
+        a1.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
         a2 = g.add_node("Array")
         a2.properties["name"] = "data"
+        a2.properties["values_config"] = {"source": "linspace", "start": 0, "stop": 1, "num": 10}
         script = generate_script(g)
         # Both should appear with different variable names
         assert "data =" in script or "data_1 =" in script

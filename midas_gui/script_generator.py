@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from textwrap import dedent
-
 from midas_gui.session import GraphModel, NodeModel, Edge, NODE_TYPES
 
 # Hard-coded utility node type_ids — everything else uses generic emitter
@@ -9,7 +7,8 @@ _HARDCODED_TYPES = {"ParameterVector", "Array", "Coordinates", "FieldRequest", "
 
 # Category ordering for dependency-safe emission
 _CATEGORY_ORDER = [
-    "Parameters & Data",
+    "Data & Inputs",
+    "Parameters & Fields",
     "Field Models",
     "Diagnostic Models",
     "Uncertainty Models",
@@ -123,7 +122,7 @@ def generate_script(
 
             # initial guess for optimization
             theta0 = np.ones(PlasmaState.n_params)
-            
+
             # You can build bounds here using PlasmaState.build_bounds()
             bounds = None
 
@@ -232,8 +231,10 @@ def _emit_node(
 
     elif node.type_id == "Array":
         config = props.get("values_config", {})
-        source = config.get("source", "file")
-        if source == "linspace":
+        source = config.get("source", "placeholder")
+        if source == "placeholder":
+            lines.append(f"{var}: np.ndarray  # TODO: assign array data")
+        elif source == "linspace":
             lines.append(
                 f'{var} = np.linspace({config.get("start", 0)}, '
                 f'{config.get("stop", 1)}, {config.get("num", 10)})'
@@ -476,7 +477,7 @@ def _find_input_edge(graph: GraphModel, node_id: str, port_name: str) -> Edge | 
 
 
 def _array_config_to_expr(config: dict) -> str:
-    source = config.get("source", "linspace")
+    source = config.get("source", "placeholder")
     if source == "linspace":
         return (
             f'np.linspace({config.get("start", 0)}, '

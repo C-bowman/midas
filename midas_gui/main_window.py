@@ -59,6 +59,12 @@ class MainWindow(QMainWindow):
         self.code_dock.setWidget(self.code_preview)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.code_dock)
 
+        # Set initial dock sizes
+        self.resizeDocks(
+            [self.palette_dock, self.props_dock], [240, 280],
+            Qt.Orientation.Horizontal,
+        )
+
         # Menu bar
         self._build_menu_bar()
 

@@ -30,6 +30,7 @@ class ThemeColors:
 
     # Node categories
     node_parameters: str = "#C792EA"
+    node_data_inputs: str = "#FF5370"
     node_field_models: str = "#82AAFF"
     node_diagnostic_models: str = "#89DDFF"
     node_likelihoods: str = "#C3E88D"
@@ -59,6 +60,7 @@ DARK_2026 = ThemeColors(
     warning="#CCA700",
     error="#F44747",
     node_parameters="#C586C0",
+    node_data_inputs="#F44747",
     node_field_models="#4FC1FF",
     node_diagnostic_models="#9CDCFE",
     node_likelihoods="#6A9955",
@@ -84,6 +86,7 @@ LIGHT_2026 = ThemeColors(
     warning="#BF8803",
     error="#CD3131",
     node_parameters="#AF00DB",
+    node_data_inputs="#CD3131",
     node_field_models="#0078D4",
     node_diagnostic_models="#267F99",
     node_likelihoods="#388A34",
@@ -110,7 +113,8 @@ def _rebuild_category_colors():
     """Rebuild CATEGORY_COLORS from the current THEME."""
     CATEGORY_COLORS.clear()
     CATEGORY_COLORS.update({
-        "Parameters & Data": THEME.node_parameters,
+        "Data & Inputs": THEME.node_data_inputs,
+        "Parameters & Fields": THEME.node_parameters,
         "Field Models": THEME.node_field_models,
         "Diagnostic Models": THEME.node_diagnostic_models,
         "Likelihoods": THEME.node_likelihoods,

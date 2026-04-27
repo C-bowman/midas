@@ -132,8 +132,6 @@ class PropertiesPanel(QWidget):
         config = props.get("values_config")
         if config:
             arr.set_config(config)
-        else:
-            arr.set_source(props.get("source_type", "file"))
         arr.value_changed.connect(lambda: self._on_array_changed("values", arr))
         self._form_layout.addRow(arr)
         self._editors["values"] = arr

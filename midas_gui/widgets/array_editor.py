@@ -29,7 +29,7 @@ class ArrayEditor(QWidget):
         source_row = QHBoxLayout()
         source_row.addWidget(QLabel(label))
         self.source_combo = QComboBox()
-        self.source_combo.addItems(["linspace", "arange", "file"])
+        self.source_combo.addItems(["placeholder", "linspace", "arange", "file"])
         self.source_combo.currentTextChanged.connect(self._on_source_changed)
         source_row.addWidget(self.source_combo)
         layout.addLayout(source_row)
@@ -102,13 +102,19 @@ class ArrayEditor(QWidget):
         self.preview_label.setWordWrap(True)
         layout.addWidget(self.preview_label)
 
-        self._generate()
+        # Default to placeholder — hide all sub-widgets
+        self.linspace_widget.hide()
+        self.preview_label.setText("(no data — placeholder only)")
 
     def _on_source_changed(self, source: str):
         self.linspace_widget.setVisible(source == "linspace")
         self.arange_widget.setVisible(source == "arange")
         self.file_widget.setVisible(source == "file")
-        if source != "file":
+        if source == "placeholder":
+            self._values = None
+            self.preview_label.setText("(no data — placeholder only)")
+            self.value_changed.emit()
+        elif source != "file":
             self._generate()
 
     def _generate(self):
@@ -170,7 +176,7 @@ class ArrayEditor(QWidget):
 
     def set_config(self, config: dict):
         """Restore the editor state from a config dict (as returned by get_config)."""
-        source = config.get("source", "linspace")
+        source = config.get("source", "placeholder")
         self.set_source(source)
         if source == "linspace":
             self.ls_start.setValue(config.get("start", 0.0))
@@ -200,8 +206,10 @@ class ArrayEditor(QWidget):
                 "stop": self.ar_stop.value(),
                 "step": self.ar_step.value(),
             }
-        else:
+        elif source == "file":
             return {
                 "source": "file",
                 "path": self.file_path_edit.text(),
             }
+        else:
+            return {"source": "placeholder"}
