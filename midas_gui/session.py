@@ -133,7 +133,7 @@ _register(
         "Coordinates", "Coordinates", "Parameters & Data",
         [],
         [("coordinates", PortType.COORDINATES)],
-        {"name": "", "coordinate_names": ["R", "z"]},
+        {"name": "", "coordinate_names": []},
     ),
     _make_spec(
         "FieldRequest", "FieldRequest", "Parameters & Data",

@@ -190,7 +190,7 @@ class TestCanConnect:
         g = GraphModel()
         arr = g.add_node("Array")
         coords = g.add_node("Coordinates")
-        # Default coordinate_names are ["R", "z"]
+        coords.properties["coordinate_names"] = ["R", "z"]
         assert g.can_connect(arr.id, "data", coords.id, "R") is True
         assert g.can_connect(arr.id, "data", coords.id, "z") is True
 
@@ -198,6 +198,7 @@ class TestCanConnect:
         g = GraphModel()
         arr = g.add_node("Array")
         coords = g.add_node("Coordinates")
+        coords.properties["coordinate_names"] = ["R", "z"]
         assert g.can_connect(arr.id, "data", coords.id, "phi") is False
 
 
@@ -299,6 +300,7 @@ class TestValidate:
     def test_coordinates_dynamic_ports_validated(self):
         g = GraphModel()
         coords = g.add_node("Coordinates")
+        coords.properties["coordinate_names"] = ["R", "z"]
         errors = g.validate()
         # R and z are required dynamic ports
         assert any("R" in e for e in errors)
@@ -309,6 +311,7 @@ class TestValidate:
         arr_r = g.add_node("Array")
         arr_z = g.add_node("Array")
         coords = g.add_node("Coordinates")
+        coords.properties["coordinate_names"] = ["R", "z"]
         g.add_edge(arr_r.id, "data", coords.id, "R")
         g.add_edge(arr_z.id, "data", coords.id, "z")
         errors = g.validate()
@@ -328,6 +331,7 @@ class TestEffectiveInputPorts:
     def test_coordinates_includes_dynamic_ports(self):
         g = GraphModel()
         coords = g.add_node("Coordinates")
+        coords.properties["coordinate_names"] = ["R", "z"]
         ports = coords.effective_input_ports
         port_names = [p.name for p in ports]
         assert "R" in port_names
@@ -336,6 +340,7 @@ class TestEffectiveInputPorts:
     def test_coordinates_dynamic_ports_are_array_type(self):
         g = GraphModel()
         coords = g.add_node("Coordinates")
+        coords.properties["coordinate_names"] = ["R", "z"]
         for port in coords.effective_input_ports:
             assert port.port_types == (PortType.ARRAY,)
             assert port.direction == PortDirection.INPUT

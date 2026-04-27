@@ -227,6 +227,7 @@ class NodeItem(QGraphicsRectItem):
         self.input_ports: dict[str, PortItem] = {}
         self.output_ports: dict[str, PortItem] = {}
         self._port_labels: list[QGraphicsTextItem] = []
+        self._hint_label: QGraphicsTextItem | None = None
         port_name_h = fm.height()
         port_type_h = type_fm.height()
         stack_h = port_name_h + self.PORT_LINE_GAP + port_type_h
@@ -292,6 +293,23 @@ class NodeItem(QGraphicsRectItem):
             self._port_labels.append(type_lbl)
             port._type_label = type_lbl
 
+        # ── Hint label for empty Coordinates nodes ─────────────
+        if node_model.type_id == "Coordinates" and not input_specs:
+            hint = QGraphicsTextItem("Add coordinates in\nProperties to create ports", self)
+            hint.setDefaultTextColor(QColor(THEME.text_secondary))
+            hint.setFont(QFont("Segoe UI", 8))
+            hint.document().setDocumentMargin(0)
+            hint.setPos(8, full_header + PORT_MARGIN_TOP)
+            hint.setZValue(2)
+            self._hint_label = hint
+            # Hide output ports until coordinates are added
+            for port in self.output_ports.values():
+                port.setVisible(False)
+                if port._label:
+                    port._label.setVisible(False)
+                if port._type_label:
+                    port._type_label.setVisible(False)
+
         # ── Endpoint bar (nodes with no output ports) ──────────
         self._endpoint_bar = None
         if not spec.output_ports:
@@ -331,6 +349,11 @@ class NodeItem(QGraphicsRectItem):
         self.input_ports.clear()
         self.output_ports.clear()
         self._port_labels.clear()
+
+        # Remove hint label if present
+        if self._hint_label:
+            self.scene().removeItem(self._hint_label)
+            self._hint_label = None
 
         # Remove endpoint bar if present
         if hasattr(self, '_endpoint_bar') and self._endpoint_bar:
@@ -445,6 +468,23 @@ class NodeItem(QGraphicsRectItem):
                             top_y + port_name_h + self.PORT_LINE_GAP)
             self._port_labels.append(type_lbl)
             port._type_label = type_lbl
+
+        # Hint label for empty Coordinates nodes
+        if self.node_model.type_id == "Coordinates" and not input_specs:
+            hint = QGraphicsTextItem("Add coordinates in\nProperties to create ports", self)
+            hint.setDefaultTextColor(QColor(THEME.text_secondary))
+            hint.setFont(QFont("Segoe UI", 8))
+            hint.document().setDocumentMargin(0)
+            hint.setPos(8, full_header + PORT_MARGIN_TOP)
+            hint.setZValue(2)
+            self._hint_label = hint
+            # Hide output ports until coordinates are added
+            for port in self.output_ports.values():
+                port.setVisible(False)
+                if port._label:
+                    port._label.setVisible(False)
+                if port._type_label:
+                    port._type_label.setVisible(False)
 
         # Endpoint bar
         if not output_specs:
@@ -713,6 +753,12 @@ class NodeCanvas(QGraphicsView):
             if port:
                 self._start_wire_drag(port, event)
                 return
+            # If clicking on empty canvas (no item), start rubber band selection
+            item = self.itemAt(pos)
+            if item is None:
+                self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
+                super().mousePressEvent(event)
+                return
         if event.button() == Qt.MouseButton.MiddleButton:
             self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
             fake = QMouseEvent(
@@ -745,6 +791,9 @@ class NodeCanvas(QGraphicsView):
             self._finish_wire_drag(event)
             return
         super().mouseReleaseEvent(event)
+        # Reset rubber band drag mode after selection completes
+        if self.dragMode() == QGraphicsView.DragMode.RubberBandDrag:
+            self.setDragMode(QGraphicsView.DragMode.NoDrag)
 
     def _start_wire_drag(self, port: PortItem, event):
         self._drag_source_port = port

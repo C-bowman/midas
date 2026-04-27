@@ -40,9 +40,18 @@ class PropertiesPanel(QWidget):
         outer.addWidget(scroll)
 
         self._form_container = QWidget()
-        self._form_layout = QFormLayout(self._form_container)
+        container_layout = QVBoxLayout(self._form_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+
+        self._form_widget = QWidget()
+        self._form_layout = QFormLayout(self._form_widget)
         self._form_layout.setContentsMargins(4, 4, 4, 4)
         self._form_layout.setSpacing(8)
+        self._form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        container_layout.addWidget(self._form_widget)
+        container_layout.addStretch(1)
         scroll.setWidget(self._form_container)
 
         self._placeholder = QLabel("Select a node to edit its properties.")
@@ -55,7 +64,7 @@ class PropertiesPanel(QWidget):
 
     def _apply_font(self):
         from PySide6.QtGui import QFont
-        self._form_container.setFont(QFont("Segoe UI", self._settings.properties_font_size))
+        self._form_widget.setFont(QFont("Segoe UI", self._settings.properties_font_size))
 
     def set_node(self, node: NodeModel | None):
         self._node = node
@@ -151,14 +160,13 @@ class PropertiesPanel(QWidget):
 
     def _add_coordinates_editors(self, props: dict):
         from PySide6.QtWidgets import QHBoxLayout, QListWidget, QListWidgetItem
-        coord_names = props.get("coordinate_names", ["R", "z"])
 
-        list_widget = QListWidget()
-        list_widget.setMaximumHeight(80)
-        for name in coord_names:
-            list_widget.addItem(QListWidgetItem(name))
-        self._form_layout.addRow("Coordinates:", list_widget)
-        self._editors["coord_list"] = list_widget
+        coord_names = props.get("coordinate_names", [])
+
+        group = QWidget()
+        v = QVBoxLayout(group)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(4)
 
         add_row = QWidget()
         h = QHBoxLayout(add_row)
@@ -170,7 +178,16 @@ class PropertiesPanel(QWidget):
         h.addWidget(add_btn)
         remove_btn = QPushButton("Remove")
         h.addWidget(remove_btn)
-        self._form_layout.addRow(add_row)
+        v.addWidget(add_row)
+
+        list_widget = QListWidget()
+        list_widget.setMaximumHeight(80)
+        for name in coord_names:
+            list_widget.addItem(QListWidgetItem(name))
+        v.addWidget(list_widget)
+        self._editors["coord_list"] = list_widget
+
+        self._form_layout.addRow("Coordinates:", group)
 
         def _sync_names():
             names = [list_widget.item(i).text() for i in range(list_widget.count())]

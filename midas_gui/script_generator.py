@@ -114,41 +114,42 @@ def generate_script(
             )""").splitlines())
 
     if runnable:
-        lines.append("")
-        if comments:
-            lines.append("")
-            lines.append("# ── Optimization ──────────────────────────────────────────")
-            lines.append("# Uncomment and configure the section below to run optimization.")
-        lines.extend(dedent("""\
+        lines.extend(dedent(
+            """
 
-            # from scipy.optimize import minimize
-            # from midas import posterior
-            #
-            # theta0 = np.zeros(PlasmaState.n_params)
-            # result = minimize(
-            #     posterior.cost,
-            #     x0=theta0,
-            #     jac=posterior.cost_gradient,
-            #     method='L-BFGS-B',
-            #     bounds=PlasmaState.build_bounds(),
-            # )
-            # theta_map = result.x""").splitlines())
-        lines.append("")
-        if comments:
-            lines.append("# ── MCMC Sampling ─────────────────────────────────────────")
-            lines.append("# Uncomment and configure the section below to run sampling.")
-        lines.extend(dedent("""\
+            # ── Optimization ──────────────────────────────────────────
+            from scipy.optimize import minimize
+            from midas import posterior
 
-            # from inference.mcmc import HamiltonianChain
-            #
-            # chain = HamiltonianChain(
-            #     posterior=posterior.log_probability,
-            #     gradient=posterior.gradient,
-            #     start=theta_map,
-            # )
-            # chain.advance(5000)
-            # chain.burn = 1000
-            # samples = chain.get_sample()""").splitlines())
+            # initial guess for optimization
+            theta0 = np.ones(PlasmaState.n_params)
+            
+            # You can build bounds here using PlasmaState.build_bounds()
+            bounds = None
+
+            result = minimize(
+                 posterior.cost,
+                 x0=theta0,
+                 jac=posterior.cost_gradient,
+                 method='L-BFGS-B',
+                 bounds=bounds,
+             )
+             theta_map = result.x
+            """).splitlines())
+        lines.extend(dedent(
+            """
+            
+            # ── MCMC Sampling ─────────────────────────────────────────
+            from inference.mcmc import HamiltonianChain
+            
+            chain = HamiltonianChain(
+                posterior=posterior.log_probability,
+                grad=posterior.gradient,
+                start=theta_map,
+            )
+            chain.advance(5000)
+            samples = chain.get_sample(burn=1000)
+            """).splitlines())
 
     return "\n".join(lines) + "\n"
 
