@@ -1,7 +1,6 @@
 # MIDAS GUI
 
-The MIDAS GUI is a desktop node-graph editor for visually constructing Bayesian
-inference analyses. Rather than writing Python scripts from scratch, users place
+The MIDAS GUI is a desktop node-graph editor for visually constructing Bayesian analyses using the `midas` framework. Rather than writing Python scripts from scratch, users place
 nodes representing diagnostic models, field models, priors and likelihoods on a
 canvas, wire them together, and export a ready-to-run Python script.
 
