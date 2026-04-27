@@ -35,14 +35,15 @@ def generate_script(
 
     # Add imported module directories to sys.path
     if imported_modules:
-        from pathlib import PurePath
+        from pathlib import PurePosixPath
         lines.append("import sys")
         lines.append("# Add imported module directories to the path")
         seen_dirs: set[str] = set()
         for mod_path in imported_modules:
-            parent = str(PurePath(mod_path).parent)
-            # Normalise to forward slashes for cross-platform scripts
-            parent = parent.replace("\\", "/")
+            # Normalise to forward slashes first so PurePosixPath handles
+            # both Windows and POSIX paths consistently on any platform.
+            normalised = mod_path.replace("\\", "/")
+            parent = str(PurePosixPath(normalised).parent)
             if parent not in seen_dirs:
                 seen_dirs.add(parent)
                 lines.append(f'sys.path.insert(0, "{parent}")')
