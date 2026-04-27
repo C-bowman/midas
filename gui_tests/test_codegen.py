@@ -327,6 +327,18 @@ class TestGenerateScriptFlags:
         assert "HamiltonianChain" in script
         assert "from midas import posterior" in script
 
+    def test_runnable_template_is_valid_python(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g, runnable=True)
+        compile(script, "<generated>", "exec")
+
+    def test_runnable_with_comments_is_valid_python(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g, runnable=True, comments=True)
+        compile(script, "<generated>", "exec")
+
     def test_runnable_not_included_by_default(self):
         g = GraphModel()
         g.add_node("Array")
@@ -344,6 +356,12 @@ class TestGenerateScriptImportedModules:
         script = generate_script(g, imported_modules=["/home/chris/models/custom.py"])
         assert "import sys" in script
         assert 'sys.path.insert(0, "/home/chris/models")' in script
+
+    def test_windows_path_normalised(self):
+        g = GraphModel()
+        g.add_node("Array")
+        script = generate_script(g, imported_modules=["C:\\Users\\chris\\models\\custom.py"])
+        assert 'sys.path.insert(0, "C:/Users/chris/models")' in script
 
     def test_no_sys_path_without_modules(self):
         g = GraphModel()

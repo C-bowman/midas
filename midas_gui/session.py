@@ -166,8 +166,12 @@ def _discover_and_register():
         for type_id, spec in specs.items():
             if type_id not in NODE_TYPES:  # don't overwrite hard-coded
                 NODE_TYPES[type_id] = spec
-    except Exception:
-        pass  # MIDAS not installed or import error — GUI still works with hard-coded nodes
+    except ImportError:
+        import warnings
+        warnings.warn(
+            "Could not import MIDAS — only hard-coded node types will be available.",
+            stacklevel=2,
+        )
 
 _discover_and_register()
 

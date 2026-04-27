@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QMainWindow, QDockWidget, QMenuBar, QStatusBar, QFileDialog, QMessageBox,
+    QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QAction, QCloseEvent
+from PySide6.QtGui import QKeySequence, QCloseEvent
 
 from midas_gui.session import GraphModel, NODE_TYPES
 from midas_gui.settings import Settings, SettingsDialog
@@ -12,7 +12,6 @@ from midas_gui.widgets.node_canvas import NodeCanvas
 from midas_gui.widgets.node_palette import NodePalette
 from midas_gui.widgets.properties_panel import PropertiesPanel
 from midas_gui.widgets.code_preview import CodePreview
-from midas_gui.theme import THEME
 
 
 class MainWindow(QMainWindow):
@@ -242,11 +241,8 @@ class MainWindow(QMainWindow):
         self.code_preview.graph = graph
 
         # Recreate node items
-        from midas_gui.widgets.node_canvas import NodeItem
         for node in graph.nodes.values():
-            item = NodeItem(node, self.canvas)
-            self.canvas._scene.addItem(item)
-            self.canvas.node_items[node.id] = item
+            self.canvas._create_node_item(node)
 
         # Recreate wire items
         for edge in graph.edges:

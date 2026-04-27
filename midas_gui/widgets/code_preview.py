@@ -23,38 +23,43 @@ class PythonHighlighter(QSyntaxHighlighter):
     }
 
     def highlightBlock(self, text: str):
-        # Comments
-        comment_fmt = QTextCharFormat()
-        comment_fmt.setForeground(QColor(THEME.text_secondary))
-        if "#" in text:
-            idx = text.index("#")
-            self.setFormat(idx, len(text) - idx, comment_fmt)
+        import re
 
-        # Strings
+        # 1. Find all string spans
         string_fmt = QTextCharFormat()
         string_fmt.setForeground(QColor(THEME.success))
-        in_str = False
-        quote_char = None
-        start = 0
-        for i, c in enumerate(text):
-            if not in_str and c in ('"', "'"):
-                in_str = True
-                quote_char = c
-                start = i
-            elif in_str and c == quote_char:
-                self.setFormat(start, i - start + 1, string_fmt)
-                in_str = False
+        string_spans: list[tuple[int, int]] = []
+        for m in re.finditer(r"""("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')""", text):
+            span = (m.start(), m.end())
+            string_spans.append(span)
+            self.setFormat(span[0], span[1] - span[0], string_fmt)
 
-        # Keywords
+        def _in_string(pos: int) -> bool:
+            return any(s <= pos < e for s, e in string_spans)
+
+        # 2. Find comment (first # not inside a string)
+        comment_fmt = QTextCharFormat()
+        comment_fmt.setForeground(QColor(THEME.text_secondary))
+        comment_start = -1
+        for i, c in enumerate(text):
+            if c == "#" and not _in_string(i):
+                comment_start = i
+                self.setFormat(i, len(text) - i, comment_fmt)
+                break
+
+        # 3. Keywords — only in code regions (not in strings or comments)
         kw_fmt = QTextCharFormat()
         kw_fmt.setForeground(QColor(THEME.node_parameters))
         kw_fmt.setFontWeight(QFont.Weight.Bold)
-        for word in text.split():
-            clean = word.strip("(),:=[]")
-            if clean in self.KEYWORDS:
-                idx = text.find(clean)
-                if idx >= 0:
-                    self.setFormat(idx, len(clean), kw_fmt)
+        for m in re.finditer(r"\b(\w+)\b", text):
+            if m.group(1) not in self.KEYWORDS:
+                continue
+            pos = m.start()
+            if _in_string(pos):
+                continue
+            if comment_start >= 0 and pos >= comment_start:
+                continue
+            self.setFormat(pos, m.end() - pos, kw_fmt)
 
 
 class CodePreview(QWidget):

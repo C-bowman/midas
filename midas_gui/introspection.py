@@ -5,7 +5,6 @@ import importlib
 import inspect
 import types
 import typing
-from abc import ABC
 
 from numpy import ndarray
 

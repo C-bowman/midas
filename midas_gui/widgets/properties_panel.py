@@ -136,26 +136,6 @@ class PropertiesPanel(QWidget):
         self._form_layout.addRow(arr)
         self._editors["values"] = arr
 
-    def _add_field_model_editors(self, props: dict):
-        field_name_edit = QLineEdit(str(props.get("field_name", "")))
-        field_name_edit.setPlaceholderText("e.g. electron_temperature")
-        field_name_edit.textChanged.connect(lambda val: self._set_prop("field_name", val))
-        self._form_layout.addRow("Field name:", field_name_edit)
-        self._editors["field_name"] = field_name_edit
-
-        axis_name_edit = QComboBox()
-        axis_name_edit.setEditable(True)
-        axis_name_edit.addItems(["psi", "R", "z", "rho"])
-        current = props.get("axis_name", "psi")
-        idx = axis_name_edit.findText(current)
-        if idx >= 0:
-            axis_name_edit.setCurrentIndex(idx)
-        else:
-            axis_name_edit.setEditText(current)
-        axis_name_edit.currentTextChanged.connect(lambda val: self._set_prop("axis_name", val))
-        self._form_layout.addRow("Axis name:", axis_name_edit)
-        self._editors["axis_name"] = axis_name_edit
-
     def _add_coordinates_editors(self, props: dict):
         from PySide6.QtWidgets import QHBoxLayout, QListWidget, QListWidgetItem
 
@@ -208,58 +188,6 @@ class PropertiesPanel(QWidget):
 
         add_btn.clicked.connect(_add)
         remove_btn.clicked.connect(_remove)
-
-    def _add_linear_diag_editors(self, props: dict):
-        row = QWidget()
-        from PySide6.QtWidgets import QHBoxLayout
-        h = QHBoxLayout(row)
-        h.setContentsMargins(0, 0, 0, 0)
-        path_edit = QLineEdit(str(props.get("model_matrix_path", "")))
-        path_edit.setReadOnly(True)
-        path_edit.setPlaceholderText("Select model matrix file…")
-        h.addWidget(path_edit)
-        btn = QPushButton("Browse…")
-        h.addWidget(btn)
-
-        def browse():
-            path, _ = QFileDialog.getOpenFileName(
-                self, "Import Model Matrix", "",
-                "NumPy files (*.npy *.npz);;CSV files (*.csv);;All files (*)",
-            )
-            if path:
-                path_edit.setText(path)
-                self._set_prop("model_matrix_path", path)
-
-        btn.clicked.connect(browse)
-        self._form_layout.addRow("Model matrix:", row)
-        self._editors["model_matrix_path"] = path_edit
-
-    def _add_constant_uncertainty_editors(self, props: dict):
-        n_data_spin = QSpinBox()
-        n_data_spin.setRange(1, 100000)
-        n_data_spin.setValue(int(props.get("n_data", 1)))
-        n_data_spin.valueChanged.connect(lambda val: self._set_prop("n_data", val))
-        self._form_layout.addRow("n_data:", n_data_spin)
-        self._editors["n_data"] = n_data_spin
-
-        param_name_edit = QLineEdit(str(props.get("parameter_name", "")))
-        param_name_edit.setPlaceholderText("e.g. sigma")
-        param_name_edit.textChanged.connect(lambda val: self._set_prop("parameter_name", val))
-        self._form_layout.addRow("Parameter name:", param_name_edit)
-        self._editors["parameter_name"] = param_name_edit
-
-    def _add_gaussian_prior_editors(self, props: dict):
-        mean_arr = ArrayEditor("Mean")
-        mean_arr.set_source(props.get("mean_source", "linspace"))
-        mean_arr.value_changed.connect(lambda: self._on_array_changed("mean", mean_arr))
-        self._form_layout.addRow(mean_arr)
-        self._editors["mean"] = mean_arr
-
-        std_arr = ArrayEditor("Std dev")
-        std_arr.set_source(props.get("std_source", "linspace"))
-        std_arr.value_changed.connect(lambda: self._on_array_changed("std", std_arr))
-        self._form_layout.addRow(std_arr)
-        self._editors["std"] = std_arr
 
     def _build_auto_editors(self, node: NodeModel):
         """Build property editors dynamically from default_properties metadata."""

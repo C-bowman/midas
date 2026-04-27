@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from PySide6.QtWidgets import (
     QGraphicsScene, QGraphicsView, QGraphicsItem,
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsPathItem,
@@ -129,48 +128,7 @@ class NodeItem(QGraphicsRectItem):
         self.canvas = canvas
         spec = node_model.spec
 
-        input_specs = node_model.effective_input_ports
-        n_inputs = len(input_specs)
-        n_outputs = len(spec.output_ports)
-        n_ports = max(n_inputs, n_outputs, 1)
-        full_header = self.TYPE_HEADER_H + self.NAME_ROW_H
-        body_height = PORT_MARGIN_TOP + n_ports * PORT_SPACING + 8
-        total_height = full_header + body_height
-
-        # ── Compute dynamic width ──────────────────────────────
-        from PySide6.QtGui import QFontMetricsF
-        fm = QFontMetricsF(self.PORT_FONT)
-        type_fm = QFontMetricsF(self.PORT_TYPE_FONT)
-        title_fm = QFontMetricsF(self.TITLE_FONT)
-        name_fm = QFontMetricsF(self.NAME_FONT)
-        node_type_fm = QFontMetricsF(self.NODE_TYPE_FONT)
-
-        header_type_width = max(
-            title_fm.horizontalAdvance(spec.display_name) + 24,
-            node_type_fm.horizontalAdvance(spec.display_name) + 24,
-        )
-        var_name = node_model.properties.get("name") or ""
-        name_label_width = name_fm.horizontalAdvance(var_name) + 24
-
-        def _port_col_width(port_spec):
-            nw = fm.horizontalAdvance(port_spec.name)
-            tw = type_fm.horizontalAdvance(port_spec.type_label)
-            return max(nw, tw)
-
-        max_row_width = 0.0
-        for i in range(n_ports):
-            in_w = 0.0
-            out_w = 0.0
-            if i < n_inputs:
-                in_w = _port_col_width(input_specs[i])
-            if i < n_outputs:
-                out_w = _port_col_width(spec.output_ports[i])
-            row_width = (
-                self.PORT_PAD + in_w + self.LABEL_GAP + out_w + self.PORT_PAD
-            )
-            max_row_width = max(max_row_width, row_width)
-
-        node_width = max(NODE_WIDTH, max_row_width, header_type_width, name_label_width)
+        node_width, total_height = self._compute_layout()
 
         super().__init__(0, 0, node_width, total_height)
         self._node_width = node_width
@@ -194,11 +152,16 @@ class NodeItem(QGraphicsRectItem):
         self.setGraphicsEffect(shadow)
 
         # ── Header: coloured bar with variable name ──────────────
+        from PySide6.QtGui import QFontMetricsF
+        title_fm = QFontMetricsF(self.TITLE_FONT)
+        node_type_fm = QFontMetricsF(self.NODE_TYPE_FONT)
+
         self._header = QGraphicsRectItem(0, 0, node_width, self.TYPE_HEADER_H, self)
         self._header.setPen(QPen(Qt.PenStyle.NoPen))
         self._header.setBrush(QBrush(QColor(category_color)))
         self._header.setZValue(0)
 
+        var_name = node_model.properties.get("name") or ""
         self._name_label = QGraphicsTextItem(var_name, self)
         self._name_label.setDefaultTextColor(QColor(THEME.bg_base))
         self._name_label.setFont(self.TITLE_FONT)
@@ -223,155 +186,27 @@ class NodeItem(QGraphicsRectItem):
         self._type_label.setPos(8, self.TYPE_HEADER_H + (self.NAME_ROW_H - type_text_h) / 2)
         self._type_label.setZValue(1)
 
-        # ── Create ports with stacked name / type labels ───────
+        # ── Create ports ───────────────────────────────────────
         self.input_ports: dict[str, PortItem] = {}
         self.output_ports: dict[str, PortItem] = {}
         self._port_labels: list[QGraphicsTextItem] = []
         self._hint_label: QGraphicsTextItem | None = None
-        port_name_h = fm.height()
-        port_type_h = type_fm.height()
-        stack_h = port_name_h + self.PORT_LINE_GAP + port_type_h
-
-        for i, port_spec in enumerate(input_specs):
-            port = PortItem(port_spec, self, i)
-            port.setParentItem(self)
-            y = full_header + PORT_MARGIN_TOP + i * PORT_SPACING + PORT_SPACING / 2
-            port.setPos(0, y)
-            self.input_ports[port_spec.name] = port
-
-            top_y = y - stack_h / 2
-
-            # Name (top line, left-aligned)
-            label = QGraphicsTextItem(port_spec.name, self)
-            label.setDefaultTextColor(QColor(THEME.text_primary))
-            label.setFont(self.PORT_FONT)
-            label.document().setDocumentMargin(0)
-            label.setPos(self.PORT_PAD, top_y)
-            label.setZValue(2)
-            self._port_labels.append(label)
-            port._label = label
-
-            # Type (bottom line, left-aligned, monospace)
-            type_lbl = QGraphicsTextItem(port_spec.type_label, self)
-            type_lbl.setDefaultTextColor(QColor(THEME.text_secondary))
-            type_lbl.setFont(self.PORT_TYPE_FONT)
-            type_lbl.document().setDocumentMargin(0)
-            type_lbl.setPos(self.PORT_PAD, top_y + port_name_h + self.PORT_LINE_GAP)
-            type_lbl.setZValue(2)
-            self._port_labels.append(type_lbl)
-            port._type_label = type_lbl
-
-        for i, port_spec in enumerate(spec.output_ports):
-            port = PortItem(port_spec, self, i)
-            port.setParentItem(self)
-            y = full_header + PORT_MARGIN_TOP + i * PORT_SPACING + PORT_SPACING / 2
-            port.setPos(node_width, y)
-            self.output_ports[port_spec.name] = port
-
-            top_y = y - stack_h / 2
-
-            # Name (top line, right-aligned)
-            label = QGraphicsTextItem(port_spec.name, self)
-            label.setDefaultTextColor(QColor(THEME.text_primary))
-            label.setFont(self.PORT_FONT)
-            label.document().setDocumentMargin(0)
-            label.setZValue(2)
-            nw = fm.horizontalAdvance(port_spec.name)
-            label.setPos(node_width - self.PORT_PAD - nw, top_y)
-            self._port_labels.append(label)
-            port._label = label
-
-            # Type (bottom line, right-aligned, monospace)
-            type_lbl = QGraphicsTextItem(port_spec.type_label, self)
-            type_lbl.setDefaultTextColor(QColor(THEME.text_secondary))
-            type_lbl.setFont(self.PORT_TYPE_FONT)
-            type_lbl.document().setDocumentMargin(0)
-            type_lbl.setZValue(2)
-            tw = type_fm.horizontalAdvance(port_spec.type_label)
-            type_lbl.setPos(node_width - self.PORT_PAD - tw,
-                            top_y + port_name_h + self.PORT_LINE_GAP)
-            self._port_labels.append(type_lbl)
-            port._type_label = type_lbl
-
-        # ── Hint label for empty Coordinates nodes ─────────────
-        if node_model.type_id == "Coordinates" and not input_specs:
-            hint = QGraphicsTextItem("Add coordinates in\nProperties to create ports", self)
-            hint.setDefaultTextColor(QColor(THEME.text_secondary))
-            hint.setFont(QFont("Segoe UI", 8))
-            hint.document().setDocumentMargin(0)
-            hint.setPos(8, full_header + PORT_MARGIN_TOP)
-            hint.setZValue(2)
-            self._hint_label = hint
-            # Hide output ports until coordinates are added
-            for port in self.output_ports.values():
-                port.setVisible(False)
-                if port._label:
-                    port._label.setVisible(False)
-                if port._type_label:
-                    port._type_label.setVisible(False)
-
-        # ── Endpoint bar (nodes with no output ports) ──────────
         self._endpoint_bar = None
-        if not spec.output_ports:
-            bar_width = 4
-            bar = QGraphicsRectItem(
-                node_width - bar_width, full_header,
-                bar_width, total_height - full_header, self
-            )
-            bar.setPen(QPen(Qt.PenStyle.NoPen))
-            bar_color = QColor(category_color)
-            bar_color.setAlphaF(0.6)
-            bar.setBrush(QBrush(bar_color))
-            bar.setZValue(1)
-            self._endpoint_bar = bar
+        self._create_port_items(node_width, total_height)
 
-    def update_title(self):
-        var_name = self.node_model.properties.get("name") or ""
-        self._name_label.setPlainText(var_name)
-
-    def rebuild_ports(self):
-        """Tear down and recreate all port graphics from effective_input_ports."""
+    def _compute_layout(self) -> tuple[float, float]:
+        """Compute and return (node_width, total_height) based on current ports."""
         from PySide6.QtGui import QFontMetricsF
-
-        # Remove old port items and their labels
-        for port in list(self.input_ports.values()):
-            if port._label:
-                self.scene().removeItem(port._label)
-            if port._type_label:
-                self.scene().removeItem(port._type_label)
-            self.scene().removeItem(port)
-        for port in list(self.output_ports.values()):
-            if port._label:
-                self.scene().removeItem(port._label)
-            if port._type_label:
-                self.scene().removeItem(port._type_label)
-            self.scene().removeItem(port)
-        self.input_ports.clear()
-        self.output_ports.clear()
-        self._port_labels.clear()
-
-        # Remove hint label if present
-        if self._hint_label:
-            self.scene().removeItem(self._hint_label)
-            self._hint_label = None
-
-        # Remove endpoint bar if present
-        if hasattr(self, '_endpoint_bar') and self._endpoint_bar:
-            self.scene().removeItem(self._endpoint_bar)
-            self._endpoint_bar = None
 
         spec = self.node_model.spec
         input_specs = self.node_model.effective_input_ports
-        output_specs = spec.output_ports
-
         n_inputs = len(input_specs)
-        n_outputs = len(output_specs)
+        n_outputs = len(spec.output_ports)
         n_ports = max(n_inputs, n_outputs, 1)
         full_header = self.TYPE_HEADER_H + self.NAME_ROW_H
         body_height = PORT_MARGIN_TOP + n_ports * PORT_SPACING + 8
         total_height = full_header + body_height
 
-        # Recalculate width
         fm = QFontMetricsF(self.PORT_FONT)
         type_fm = QFontMetricsF(self.PORT_TYPE_FONT)
         title_fm = QFontMetricsF(self.TITLE_FONT)
@@ -393,21 +228,24 @@ class NodeItem(QGraphicsRectItem):
         max_row_width = 0.0
         for i in range(n_ports):
             in_w = _port_col_width(input_specs[i]) if i < n_inputs else 0.0
-            out_w = _port_col_width(output_specs[i]) if i < n_outputs else 0.0
+            out_w = _port_col_width(spec.output_ports[i]) if i < n_outputs else 0.0
             row_width = self.PORT_PAD + in_w + self.LABEL_GAP + out_w + self.PORT_PAD
             max_row_width = max(max_row_width, row_width)
 
         node_width = max(NODE_WIDTH, max_row_width, header_type_width, name_label_width)
-        self._node_width = node_width
+        return node_width, total_height
 
-        # Resize the node rect
-        self.setRect(0, 0, node_width, total_height)
+    def _create_port_items(self, node_width: float, total_height: float):
+        """Create port circles, labels, hint label, and endpoint bar."""
+        from PySide6.QtGui import QFontMetricsF
 
-        # Resize header and subtitle bars
-        self._header.setRect(0, 0, node_width, self.TYPE_HEADER_H)
-        self._type_bg.setRect(0, self.TYPE_HEADER_H, node_width, self.NAME_ROW_H)
+        spec = self.node_model.spec
+        input_specs = self.node_model.effective_input_ports
+        output_specs = spec.output_ports
+        full_header = self.TYPE_HEADER_H + self.NAME_ROW_H
 
-        # Recreate ports
+        fm = QFontMetricsF(self.PORT_FONT)
+        type_fm = QFontMetricsF(self.PORT_TYPE_FONT)
         port_name_h = fm.height()
         port_type_h = type_fm.height()
         stack_h = port_name_h + self.PORT_LINE_GAP + port_type_h
@@ -478,7 +316,6 @@ class NodeItem(QGraphicsRectItem):
             hint.setPos(8, full_header + PORT_MARGIN_TOP)
             hint.setZValue(2)
             self._hint_label = hint
-            # Hide output ports until coordinates are added
             for port in self.output_ports.values():
                 port.setVisible(False)
                 if port._label:
@@ -500,6 +337,49 @@ class NodeItem(QGraphicsRectItem):
             bar.setBrush(QBrush(bar_color))
             bar.setZValue(1)
             self._endpoint_bar = bar
+
+    def update_title(self):
+        var_name = self.node_model.properties.get("name") or ""
+        self._name_label.setPlainText(var_name)
+
+    def rebuild_ports(self):
+        """Tear down and recreate all port graphics from effective_input_ports."""
+        # Remove old port items and their labels
+        for port in list(self.input_ports.values()):
+            if port._label:
+                self.scene().removeItem(port._label)
+            if port._type_label:
+                self.scene().removeItem(port._type_label)
+            self.scene().removeItem(port)
+        for port in list(self.output_ports.values()):
+            if port._label:
+                self.scene().removeItem(port._label)
+            if port._type_label:
+                self.scene().removeItem(port._type_label)
+            self.scene().removeItem(port)
+        self.input_ports.clear()
+        self.output_ports.clear()
+        self._port_labels.clear()
+
+        # Remove hint label if present
+        if self._hint_label:
+            self.scene().removeItem(self._hint_label)
+            self._hint_label = None
+
+        # Remove endpoint bar if present
+        if self._endpoint_bar:
+            self.scene().removeItem(self._endpoint_bar)
+            self._endpoint_bar = None
+
+        # Recompute layout and resize
+        node_width, total_height = self._compute_layout()
+        self._node_width = node_width
+        self.setRect(0, 0, node_width, total_height)
+        self._header.setRect(0, 0, node_width, self.TYPE_HEADER_H)
+        self._type_bg.setRect(0, self.TYPE_HEADER_H, node_width, self.NAME_ROW_H)
+
+        # Recreate ports
+        self._create_port_items(node_width, total_height)
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
@@ -618,10 +498,15 @@ class NodeCanvas(QGraphicsView):
 
     def add_node(self, type_id: str, x: float = 0.0, y: float = 0.0) -> NodeItem:
         node_model = self.graph.add_node(type_id, x, y)
+        item = self._create_node_item(node_model)
+        self.graph_modified.emit()
+        return item
+
+    def _create_node_item(self, node_model: NodeModel) -> NodeItem:
+        """Create the visual item for an existing NodeModel."""
         item = NodeItem(node_model, self)
         self._scene.addItem(item)
         self.node_items[node_model.id] = item
-        self.graph_modified.emit()
         return item
 
     def remove_selected_nodes(self):
@@ -1017,8 +902,9 @@ class NodeCanvas(QGraphicsView):
             source.y + 30,
         )
         # Copy properties (except auto-generated name)
+        import copy
         for key, val in source.properties.items():
             if key == "name":
                 continue
-            new_item.node_model.properties[key] = val
+            new_item.node_model.properties[key] = copy.deepcopy(val)
         new_item.update_title()

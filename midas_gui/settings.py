@@ -3,15 +3,15 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QSpinBox,
-    QDialogButtonBox, QLabel, QGroupBox, QComboBox, QMessageBox,
+    QDialogButtonBox, QGroupBox, QComboBox, QMessageBox,
 )
 
 from midas_gui.theme import THEMES
 
 _DEFAULTS = {
-    "font_size/palette": 10,
-    "font_size/properties": 10,
-    "font_size/code_preview": 10,
+    "font_size/palette": 12,
+    "font_size/properties": 12,
+    "font_size/code_preview": 12,
 }
 
 

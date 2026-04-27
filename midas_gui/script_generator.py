@@ -35,12 +35,12 @@ def generate_script(
 
     # Add imported module directories to sys.path
     if imported_modules:
-        from pathlib import PurePosixPath, PureWindowsPath
+        from pathlib import PurePath
         lines.append("import sys")
         lines.append("# Add imported module directories to the path")
         seen_dirs: set[str] = set()
         for mod_path in imported_modules:
-            parent = str(PureWindowsPath(mod_path).parent)
+            parent = str(PurePath(mod_path).parent)
             # Normalise to forward slashes for cross-platform scripts
             parent = parent.replace("\\", "/")
             if parent not in seen_dirs:
@@ -127,13 +127,13 @@ def generate_script(
             bounds = None
 
             result = minimize(
-                 posterior.cost,
-                 x0=theta0,
-                 jac=posterior.cost_gradient,
-                 method='L-BFGS-B',
-                 bounds=bounds,
-             )
-             theta_map = result.x
+                posterior.cost,
+                x0=theta0,
+                jac=posterior.cost_gradient,
+                method='L-BFGS-B',
+                bounds=bounds,
+            )
+            theta_map = result.x
             """).splitlines())
         lines.extend(dedent(
             """
@@ -474,23 +474,3 @@ def _find_input_edge(graph: GraphModel, node_id: str, port_name: str) -> Edge | 
         if edge.target_node_id == node_id and edge.target_port_name == port_name:
             return edge
     return None
-
-
-def _array_config_to_expr(config: dict) -> str:
-    source = config.get("source", "placeholder")
-    if source == "linspace":
-        return (
-            f'np.linspace({config.get("start", 0)}, '
-            f'{config.get("stop", 1)}, {config.get("num", 10)})'
-        )
-    elif source == "arange":
-        return (
-            f'np.arange({config.get("start", 0)}, '
-            f'{config.get("stop", 1)}, {config.get("step", 0.1)})'
-        )
-    elif source == "file":
-        path = config.get("path", "data.npy")
-        if path.endswith(".csv"):
-            return f'np.loadtxt("{path}", delimiter=",")'
-        return f'np.load("{path}")'
-    return "np.array([])  # TODO"

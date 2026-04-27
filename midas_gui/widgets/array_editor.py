@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpinBox,
-    QDoubleSpinBox, QComboBox, QPushButton, QFileDialog, QGroupBox,
-    QFormLayout, QScrollArea, QFrame, QSizePolicy,
+    QDoubleSpinBox, QComboBox, QPushButton, QFileDialog,
+    QFormLayout,
 )
 from PySide6.QtCore import Qt, Signal
 import numpy as np
@@ -143,7 +142,21 @@ class ArrayEditor(QWidget):
                 self._values = np.loadtxt(path, delimiter=",").flatten()
             elif path.endswith(".npz"):
                 data = np.load(path)
-                key = list(data.keys())[0]
+                keys = list(data.keys())
+                if not keys:
+                    self.preview_label.setText("Error: .npz file contains no arrays")
+                    return
+                elif len(keys) == 1:
+                    key = keys[0]
+                else:
+                    from PySide6.QtWidgets import QInputDialog
+                    key, ok = QInputDialog.getItem(
+                        self, "Select Array",
+                        "The .npz file contains multiple arrays.\nSelect which one to load:",
+                        keys, 0, False,
+                    )
+                    if not ok:
+                        return
                 self._values = data[key].flatten()
             else:
                 self._values = np.load(path).flatten()
