@@ -28,7 +28,7 @@ class ArrayEditor(QWidget):
         source_row = QHBoxLayout()
         source_row.addWidget(QLabel(label))
         self.source_combo = QComboBox()
-        self.source_combo.addItems(["placeholder", "linspace", "arange", "file"])
+        self.source_combo.addItems(["placeholder", "linspace", "arange", "constant", "file"])
         self.source_combo.currentTextChanged.connect(self._on_source_changed)
         source_row.addWidget(self.source_combo)
         layout.addLayout(source_row)
@@ -81,6 +81,25 @@ class ArrayEditor(QWidget):
         for w in [self.ar_start, self.ar_stop, self.ar_step]:
             w.valueChanged.connect(self._generate)
 
+        # Full controls
+        self.full_widget = QWidget()
+        full_layout = QFormLayout(self.full_widget)
+        full_layout.setContentsMargins(0, 0, 0, 0)
+        self.full_size = QSpinBox()
+        self.full_size.setRange(1, 100000)
+        self.full_size.setValue(10)
+        self.full_value = QDoubleSpinBox()
+        self.full_value.setRange(-1e12, 1e12)
+        self.full_value.setDecimals(4)
+        self.full_value.setValue(0.0)
+        full_layout.addRow("Size:", self.full_size)
+        full_layout.addRow("Value:", self.full_value)
+        layout.addWidget(self.full_widget)
+        self.full_widget.hide()
+
+        for w in [self.full_size, self.full_value]:
+            w.valueChanged.connect(self._generate)
+
         # File controls
         self.file_widget = QWidget()
         file_layout = QHBoxLayout(self.file_widget)
@@ -89,7 +108,9 @@ class ArrayEditor(QWidget):
         self.file_path_edit.setReadOnly(True)
         self.file_path_edit.setPlaceholderText("No file selected")
         file_layout.addWidget(self.file_path_edit)
-        browse_btn = QPushButton("Browse…")
+        self._file_path: str = ""
+        self._npz_key: str | None = None
+        browse_btn = QPushButton("Browse\u2026")
         browse_btn.clicked.connect(self._browse_file)
         file_layout.addWidget(browse_btn)
         layout.addWidget(self.file_widget)
@@ -108,6 +129,7 @@ class ArrayEditor(QWidget):
     def _on_source_changed(self, source: str):
         self.linspace_widget.setVisible(source == "linspace")
         self.arange_widget.setVisible(source == "arange")
+        self.full_widget.setVisible(source == "constant")
         self.file_widget.setVisible(source == "file")
         if source == "placeholder":
             self._values = None
@@ -126,6 +148,8 @@ class ArrayEditor(QWidget):
             self._values = np.arange(
                 self.ar_start.value(), self.ar_stop.value(), self.ar_step.value()
             )
+        elif source == "constant":
+            self._values = np.full(self.full_size.value(), self.full_value.value())
         self._update_preview()
         self.value_changed.emit()
 
@@ -137,6 +161,8 @@ class ArrayEditor(QWidget):
         if not path:
             return
         self.file_path_edit.setText(path)
+        self._file_path = path
+        self._npz_key = None
         try:
             if path.endswith(".csv"):
                 self._values = np.loadtxt(path, delimiter=",").flatten()
@@ -157,7 +183,9 @@ class ArrayEditor(QWidget):
                     )
                     if not ok:
                         return
+                self._npz_key = key
                 self._values = data[key].flatten()
+                self.file_path_edit.setText(f"{path}  [{key}]")
             else:
                 self._values = np.load(path).flatten()
             self._update_preview()
@@ -199,8 +227,17 @@ class ArrayEditor(QWidget):
             self.ar_start.setValue(config.get("start", 0.0))
             self.ar_stop.setValue(config.get("stop", 1.0))
             self.ar_step.setValue(config.get("step", 0.1))
+        elif source == "constant":
+            self.full_size.setValue(config.get("size", 10))
+            self.full_value.setValue(config.get("value", 0.0))
         elif source == "file":
-            self.file_path_edit.setText(config.get("path", ""))
+            path = config.get("path", "")
+            self._file_path = path
+            self._npz_key = config.get("npz_key", None)
+            if self._npz_key:
+                self.file_path_edit.setText(f"{path}  [{self._npz_key}]")
+            else:
+                self.file_path_edit.setText(path)
         self._generate()
 
     def get_config(self) -> dict:
@@ -219,10 +256,19 @@ class ArrayEditor(QWidget):
                 "stop": self.ar_stop.value(),
                 "step": self.ar_step.value(),
             }
-        elif source == "file":
+        elif source == "constant":
             return {
-                "source": "file",
-                "path": self.file_path_edit.text(),
+                "source": "constant",
+                "size": self.full_size.value(),
+                "value": self.full_value.value(),
             }
+        elif source == "file":
+            config = {
+                "source": "file",
+                "path": self._file_path,
+            }
+            if self._npz_key is not None:
+                config["npz_key"] = self._npz_key
+            return config
         else:
             return {"source": "placeholder"}

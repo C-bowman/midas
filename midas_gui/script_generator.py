@@ -245,10 +245,18 @@ def _emit_node(
                 f'{var} = np.arange({config.get("start", 0)}, '
                 f'{config.get("stop", 1)}, {config.get("step", 0.1)})'
             )
+        elif source == "constant":
+            lines.append(
+                f'{var} = np.full({config.get("size", 10)}, '
+                f'{config.get("value", 0.0)})'
+            )
         elif source == "file":
             path = config.get("path", "data.npy")
+            npz_key = config.get("npz_key")
             if path.endswith(".csv"):
                 lines.append(f'{var} = np.loadtxt("{path}", delimiter=",")')
+            elif npz_key is not None:
+                lines.append(f'{var} = np.load("{path}")["{npz_key}"]')
             else:
                 lines.append(f'{var} = np.load("{path}")')
         else:

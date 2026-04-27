@@ -109,6 +109,22 @@ class TestGenerateScriptArray:
         script = generate_script(g)
         assert 'np.loadtxt("values.csv", delimiter=",")' in script
 
+    def test_file_npz(self):
+        g = GraphModel()
+        arr = g.add_node("Array")
+        arr.properties["name"] = "data"
+        arr.properties["values_config"] = {"source": "file", "path": "archive.npz", "npz_key": "temperatures"}
+        script = generate_script(g)
+        assert 'data = np.load("archive.npz")["temperatures"]' in script
+
+    def test_full(self):
+        g = GraphModel()
+        arr = g.add_node("Array")
+        arr.properties["name"] = "zeros"
+        arr.properties["values_config"] = {"source": "constant", "size": 20, "value": 0.0}
+        script = generate_script(g)
+        assert "zeros = np.full(20, 0.0)" in script
+
     def test_placeholder(self):
         g = GraphModel()
         arr = g.add_node("Array")
