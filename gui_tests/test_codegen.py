@@ -547,7 +547,9 @@ class TestGenerateScriptConstantUncertainty:
         cu.properties["n_data"] = 50
         cu.properties["parameter_name"] = "sigma_te"
         script = generate_script(g)
-        assert 'sigma_model = ConstantUncertainty(n_data=50, parameter_name="sigma_te")' in script
+        assert "sigma_model = ConstantUncertainty(" in script
+        assert "n_data=50," in script
+        assert 'parameter_name="sigma_te",' in script
 
     def test_default_parameter_name(self):
         g = GraphModel()
@@ -555,7 +557,7 @@ class TestGenerateScriptConstantUncertainty:
         cu.properties["name"] = "sigma"
         cu.properties["parameter_name"] = ""
         script = generate_script(g)
-        assert 'parameter_name="sigma_sigma"' in script
+        assert 'parameter_name="",' in script
 
 
 # ── generate_script: GaussianLikelihood ────────────────────────────────
@@ -578,7 +580,9 @@ class TestGenerateScriptGaussianLikelihood:
         g.add_edge(sigma.id, "data", gl.id, "sigma")
 
         script = generate_script(g)
-        assert "like = GaussianLikelihood(y_data=y, sigma=err)" in script
+        assert "like = GaussianLikelihood(" in script
+        assert "y_data=y," in script
+        assert "sigma=err," in script
 
     def test_with_uncertainty_model(self):
         g = GraphModel()
@@ -595,7 +599,9 @@ class TestGenerateScriptGaussianLikelihood:
         g.add_edge(cu.id, "uncertainties", gl.id, "sigma")
 
         script = generate_script(g)
-        assert "like = GaussianLikelihood(y_data=y, sigma=unc)" in script
+        assert "like = GaussianLikelihood(" in script
+        assert "y_data=y," in script
+        assert "sigma=unc," in script
 
     def test_without_sigma(self):
         g = GraphModel()
@@ -608,8 +614,10 @@ class TestGenerateScriptGaussianLikelihood:
         g.add_edge(data.id, "data", gl.id, "y_data")
 
         script = generate_script(g)
-        assert "like = GaussianLikelihood(y_data=y)" in script
-        assert "sigma" not in script.split("like = GaussianLikelihood")[1].split("\n")[0]
+        assert "like = GaussianLikelihood(" in script
+        assert "y_data=y," in script
+        # sigma is optional and unconnected — should be omitted
+        assert "sigma" not in script.split("GaussianLikelihood")[1].split(")")[0]
 
 
 # ── generate_script: GaussianPrior ─────────────────────────────────────
@@ -667,6 +675,7 @@ class TestGenerateScriptGaussianPrior:
         assert "field_request" not in script.split("GaussianPrior")[1].split(")")[0]
 
     def test_without_either_shows_todo(self):
+        """When both optional ports are unconnected, they are simply omitted."""
         g = GraphModel()
         mean = g.add_node("Array")
         mean.properties["name"] = "mu"
@@ -682,7 +691,13 @@ class TestGenerateScriptGaussianPrior:
         g.add_edge(std.id, "data", gp.id, "standard_deviation")
 
         script = generate_script(g)
-        assert "TODO" in script
+        assert "prior = GaussianPrior(" in script
+        assert "mean=mu," in script
+        assert "standard_deviation=sd," in script
+        # Optional ports are omitted, not shown as TODO
+        prior_block = script.split("GaussianPrior(")[1].split(")")[0]
+        assert "field_request" not in prior_block
+        assert "parameter_vector" not in prior_block
 
 
 # ── generate_script: build_posterior with multiple items ───────────────

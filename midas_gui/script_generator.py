@@ -2,20 +2,6 @@ from __future__ import annotations
 from textwrap import dedent
 from midas_gui.session import GraphModel, NodeModel, Edge, NODE_TYPES
 
-# Hard-coded utility node type_ids — everything else uses generic emitter
-_HARDCODED_TYPES = {"ParameterVector", "Array", "Coordinates", "FieldRequest", "DiagnosticLikelihood"}
-
-# Category ordering for dependency-safe emission
-_CATEGORY_ORDER = [
-    "Data & Inputs",
-    "Parameters & Fields",
-    "Field Models",
-    "Diagnostic Models",
-    "Uncertainty Models",
-    "Likelihoods",
-    "Priors",
-]
-
 
 def generate_script(
     graph: GraphModel,
@@ -82,7 +68,7 @@ def generate_script(
     ordered_nodes = _dependency_order(graph)
 
     for node in ordered_nodes:
-        code = _emit_node(node, var_names, graph, comments)
+        code = _emit_node(node, var_names, graph)
         if code:
             lines.extend(code)
             lines.append("")
@@ -216,14 +202,10 @@ def _emit_node(
     node: NodeModel,
     var_names: dict[str, str],
     graph: GraphModel,
-    comments: bool,
 ) -> list[str]:
     var = var_names[node.id]
     props = node.properties
     lines: list[str] = []
-
-    if comments:
-        lines.append(f"# {node.spec.display_name}: {props.get('name', var)}")
 
     if node.type_id == "ParameterVector":
         name = props.get("name", var)
@@ -262,18 +244,6 @@ def _emit_node(
         else:
             lines.append(f"{var} = np.array([])  # TODO: specify data")
 
-    elif node.type_id in ("PiecewiseLinearField", "CubicSplineField"):
-        field_name = props.get("field_name", "").strip() or var
-        axis_name = props.get("axis_name", "psi")
-        axis_edge = _find_input_edge(graph, node.id, "axis")
-        axis_var = var_names[axis_edge.source_node_id] if axis_edge else "np.linspace(0, 1, 10)  # TODO: connect axis"
-        lines.extend(dedent(f"""\
-            {var} = {node.type_id}(
-                field_name="{field_name}",
-                axis={axis_var},
-                axis_name="{axis_name}",
-            )""").splitlines())
-
     elif node.type_id == "Coordinates":
         coord_names = props.get("coordinate_names", [])
         lines.append(f'{var} = {{')
@@ -286,8 +256,6 @@ def _emit_node(
     elif node.type_id == "FieldRequest":
         field_edge = _find_input_edge(graph, node.id, "field")
         coord_edge = _find_input_edge(graph, node.id, "coordinates")
-        # FieldRequest needs the field name and coordinates
-        field_var = var_names[field_edge.source_node_id] if field_edge else "None  # TODO"
         coord_var = var_names[coord_edge.source_node_id] if coord_edge else "{}  # TODO"
         # The field name comes from the connected FieldModel's field_name property
         fr_name = var
@@ -300,33 +268,6 @@ def _emit_node(
                 name="{fr_name}",
                 coordinates={coord_var},
             )""").splitlines())
-
-    elif node.type_id == "LinearDiagnosticModel":
-        field_edge = _find_input_edge(graph, node.id, "field")
-        field_var = var_names[field_edge.source_node_id] if field_edge else "None  # TODO: connect field_request"
-        matrix_edge = _find_input_edge(graph, node.id, "model_matrix")
-        matrix_var = var_names[matrix_edge.source_node_id] if matrix_edge else "np.eye(10)  # TODO: connect model_matrix"
-        lines.extend(dedent(f"""\
-            {var} = LinearDiagnosticModel(
-                field={field_var},
-                model_matrix={matrix_var},
-            )""").splitlines())
-
-    elif node.type_id == "ConstantUncertainty":
-        n_data = props.get("n_data", 1)
-        param_name = props.get("parameter_name", "").strip() or f"{var}_sigma"
-        lines.append(f'{var} = ConstantUncertainty(n_data={n_data}, parameter_name="{param_name}")')
-
-    elif node.type_id == "GaussianLikelihood":
-        name = props.get("name", var)
-        data_edge = _find_input_edge(graph, node.id, "y_data")
-        data_var = var_names[data_edge.source_node_id] if data_edge else "None  # TODO: connect data"
-        sigma_edge = _find_input_edge(graph, node.id, "sigma")
-        if sigma_edge:
-            sigma_var = var_names[sigma_edge.source_node_id]
-            lines.append(f'{var} = GaussianLikelihood(y_data={data_var}, sigma={sigma_var})')
-        else:
-            lines.append(f'{var} = GaussianLikelihood(y_data={data_var})')
 
     elif node.type_id == "DiagnosticLikelihood":
         name = props.get("name", var)
@@ -341,31 +282,9 @@ def _emit_node(
                 name="{name}",
             )""").splitlines())
 
-    elif node.type_id == "GaussianPrior":
-        name = props.get("name", var)
-        mean_edge = _find_input_edge(graph, node.id, "mean")
-        std_edge = _find_input_edge(graph, node.id, "standard_deviation")
-        fr_edge = _find_input_edge(graph, node.id, "field_request")
-        pv_edge = _find_input_edge(graph, node.id, "parameter_vector")
-
-        mean_var = var_names[mean_edge.source_node_id] if mean_edge else "np.zeros(1)  # TODO"
-        std_var = var_names[std_edge.source_node_id] if std_edge else "np.ones(1)  # TODO"
-
-        lines.append(f'{var} = GaussianPrior(')
-        lines.append(f'    name="{name}",')
-        lines.append(f'    mean={mean_var},')
-        lines.append(f'    standard_deviation={std_var},')
-        if fr_edge:
-            lines.append(f'    field_request={var_names[fr_edge.source_node_id]},')
-        elif pv_edge:
-            lines.append(f'    parameter_vector={var_names[pv_edge.source_node_id]},')
-        else:
-            lines.append('    # TODO: connect field_request or parameter_vector')
-        lines.append(')')
-
     else:
-        # Generic emitter for auto-generated nodes
-        lines.extend(_emit_auto_node(node, var, var_names, graph, comments))
+        # Generic emitter for all auto-generated nodes (ABC subclasses)
+        lines.extend(_emit_auto_node(node, var, var_names, graph))
 
     return lines
 
@@ -375,7 +294,6 @@ def _emit_auto_node(
     var: str,
     var_names: dict[str, str],
     graph: GraphModel,
-    comments: bool,
 ) -> list[str]:
     """Emit constructor call for an auto-generated node."""
     lines: list[str] = []
@@ -383,65 +301,72 @@ def _emit_auto_node(
     props = node.properties
     unresolved_meta = props.get("_unresolved", spec.default_properties.get("_unresolved", {}))
 
-    # Build argument list from the spec's input ports and config properties
-    args: list[str] = []
+    # Build lookups
+    port_by_name = {p.name: p for p in spec.input_ports}
+    param_order = spec.default_properties.get("_param_order", [])
 
-    # Iterate over input ports (in spec order)
-    for port in spec.input_ports:
-        edge = _find_input_edge(graph, node.id, port.name)
-        if edge:
-            args.append(f"    {port.name}={var_names[edge.source_node_id]},")
-        elif not port.required:
-            pass  # skip optional unconnected ports
-        else:
-            args.append(f"    {port.name}=None,  # TODO: connect {port.name}")
+    # Determine argument order: use _param_order if available,
+    # otherwise fall back to ports-then-properties order.
+    if param_order:
+        ordered_params = param_order
+    else:
+        ordered_params = (
+            [p.name for p in spec.input_ports]
+            + [k for k in spec.default_properties if k not in ("_class", "_unresolved", "_param_order", "name")]
+        )
 
-    # Iterate over config properties (in spec order)
-    for key, default_val in spec.default_properties.items():
-        if key in ("_class", "_unresolved", "name"):
-            continue
-
-        # Check if this is an unresolved type
-        if key in unresolved_meta:
-            meta = unresolved_meta[key]
-            use_default_key = f"_use_default_{key}"
-            if props.get(use_default_key, meta.get("has_default", False)):
-                # Use the class default — emit the repr
-                default_repr = meta.get("default_repr", "None")
-                args.append(f"    {key}={default_repr},")
-            else:
-                val = props.get(key, "")
-                if val:
-                    args.append(f"    {key}={val},")
-                else:
-                    type_name = meta.get("type_name", "?")
-                    args.append(f"    # {key}: {type_name}  # TODO: assign value")
-        elif isinstance(default_val, str):
-            val = props.get(key, default_val)
-            args.append(f'    {key}="{val}",')
-        elif isinstance(default_val, (int, float)):
-            val = props.get(key, default_val)
-            args.append(f"    {key}={val},")
-        elif isinstance(default_val, tuple):
-            val = props.get(key, default_val)
-            args.append(f"    {key}={val},")
-
-    # Check if "name" is in the spec's init signature (not just our GUI name prop)
-    # For prior classes and others, "name" is the first positional arg
-    has_name_param = any(
-        key == "name" and key not in ("_class", "_unresolved")
-        for key in spec.default_properties
-    )
+    # Check if "name" is a real __init__ parameter
+    has_name_param = "name" in spec.default_properties and "name" not in ("_class", "_unresolved", "_param_order")
 
     class_name = node.type_id
     if has_name_param:
         name_val = props.get("name", var)
         lines.append(f'{var} = {class_name}(')
-        lines.append(f'    "{name_val}",')
+        lines.append(f'    name="{name_val}",')
     else:
         lines.append(f'{var} = {class_name}(')
 
-    lines.extend(args)
+    # Emit arguments in order
+    for param_name in ordered_params:
+        if param_name == "name":
+            continue  # already emitted above
+
+        if param_name in port_by_name:
+            port = port_by_name[param_name]
+            edge = _find_input_edge(graph, node.id, port.name)
+            if edge:
+                lines.append(f"    {port.name}={var_names[edge.source_node_id]},")
+            elif not port.required:
+                pass  # skip optional unconnected ports
+            else:
+                lines.append(f"    {port.name}=None,  # TODO: connect {port.name}")
+
+        elif param_name in unresolved_meta:
+            meta = unresolved_meta[param_name]
+            use_default_key = f"_use_default_{param_name}"
+            if props.get(use_default_key, meta.get("has_default", False)):
+                default_repr = meta.get("default_repr", "None")
+                lines.append(f"    {param_name}={default_repr},")
+            else:
+                val = props.get(param_name, "")
+                if val:
+                    lines.append(f"    {param_name}={val},")
+                else:
+                    type_name = meta.get("type_name", "?")
+                    lines.append(f"    # {param_name}: {type_name}  # TODO: assign value")
+
+        elif param_name in spec.default_properties:
+            default_val = spec.default_properties[param_name]
+            if isinstance(default_val, str):
+                val = props.get(param_name, default_val)
+                lines.append(f'    {param_name}="{val}",')
+            elif isinstance(default_val, (int, float)):
+                val = props.get(param_name, default_val)
+                lines.append(f"    {param_name}={val},")
+            elif isinstance(default_val, tuple):
+                val = props.get(param_name, default_val)
+                lines.append(f"    {param_name}={val},")
+
     lines.append(f')')
     return lines
 

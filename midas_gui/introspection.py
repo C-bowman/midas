@@ -223,6 +223,11 @@ def generate_node_spec(
     # Store the originating class reference and module for codegen
     default_properties["_class"] = f"{cls.__module__}.{cls.__qualname__}"
 
+    # Store __init__ parameter order (excluding 'self') for codegen argument ordering
+    default_properties["_param_order"] = [
+        p for p in sig.parameters if p != "self"
+    ]
+
     return NodeTypeSpec(
         type_id=cls.__name__,
         display_name=cls.__name__,
