@@ -6,7 +6,6 @@ from midas_gui.session import GraphModel, NodeModel, Edge, NODE_TYPES
 def generate_script(
     graph: GraphModel,
     runnable: bool = False,
-    comments: bool = False,
     imported_modules: list[str] | None = None,
 ) -> str:
     """Traverse the node graph and emit a valid MIDAS Python script."""
@@ -60,23 +59,24 @@ def generate_script(
         lines.append(f"from {module} import {names_str}")
     lines.append("")
 
-    if comments:
-        lines.append("# ── Analysis construction ──────────────────────────────────")
+    # Emit nodes grouped by type with locality-aware ordering
+    emitted: set[str] = set()
+    _emit_grouped_nodes(graph, var_names, lines, emitted)
+
+    # Emit any orphan nodes (defined but not connected to the analysis chain)
+    orphans = [n for n in graph.nodes.values() if n.id not in emitted]
+    if orphans:
+        lines.append("# ── Unused nodes ──────────────────────────────────────────")
         lines.append("")
-
-    # Emit in dependency order: group by category, hard-coded order first
-    ordered_nodes = _dependency_order(graph)
-
-    for node in ordered_nodes:
-        code = _emit_node(node, var_names, graph)
-        if code:
-            lines.extend(code)
-            lines.append("")
+        for node in orphans:
+            code = _emit_node(node, var_names, graph)
+            if code:
+                lines.extend(code)
+                lines.append("")
 
     # Build posterior call
-    if comments:
-        lines.append("# ── Build posterior ────────────────────────────────────────")
-        lines.append("")
+    lines.append("# ── Build posterior ────────────────────────────────────────")
+    lines.append("")
 
     diag_likelihoods = [
         var_names[n.id] for n in graph.nodes.values()
@@ -371,34 +371,103 @@ def _emit_auto_node(
     return lines
 
 
-def _dependency_order(graph: GraphModel) -> list[NodeModel]:
-    """Topological sort: each node appears after all nodes connected to its inputs."""
-    # Build adjacency: for each node, which nodes must come before it?
-    dependencies: dict[str, set[str]] = {nid: set() for nid in graph.nodes}
-    for edge in graph.edges:
-        if edge.target_node_id in dependencies:
-            dependencies[edge.target_node_id].add(edge.source_node_id)
+# Type groups for locality-aware emission ordering
+_TYPE_GROUPS = [
+    ("Field Models",            "# ── Field models ─────────────────────────────────────────"),
+    ("Diagnostic Models",       "# ── Diagnostic models ────────────────────────────────────"),
+    ("Likelihoods",             "# ── Likelihood models ────────────────────────────────────"),
+    ("DiagnosticLikelihood",    "# ── Diagnostic likelihoods ───────────────────────────────"),
+    ("Priors",                  "# ── Priors ───────────────────────────────────────────────"),
+]
 
-    # Kahn's algorithm
-    ordered: list[NodeModel] = []
-    in_degree = {nid: len(deps) for nid, deps in dependencies.items()}
-    queue = [nid for nid, deg in in_degree.items() if deg == 0]
 
+def _emit_grouped_nodes(
+    graph: GraphModel,
+    var_names: dict[str, str],
+    lines: list[str],
+    emitted: set[str],
+):
+    """Emit nodes grouped by type, with upstream dependencies inlined."""
+    for group_key, header in _TYPE_GROUPS:
+        # Collect nodes for this group
+        if group_key == "DiagnosticLikelihood":
+            group_nodes = [n for n in graph.nodes.values() if n.type_id == "DiagnosticLikelihood"]
+        elif group_key == "Likelihoods":
+            # Likelihoods category but excluding DiagnosticLikelihood
+            group_nodes = [
+                n for n in graph.nodes.values()
+                if n.type_id != "DiagnosticLikelihood"
+                and NODE_TYPES.get(n.type_id) and NODE_TYPES[n.type_id].category == "Likelihoods"
+            ]
+        else:
+            group_nodes = [
+                n for n in graph.nodes.values()
+                if NODE_TYPES.get(n.type_id) and NODE_TYPES[n.type_id].category == group_key
+            ]
+        # Also include UncertaintyModel nodes in the Likelihoods group
+        if group_key == "Likelihoods":
+            group_nodes.extend(
+                n for n in graph.nodes.values()
+                if NODE_TYPES.get(n.type_id) and NODE_TYPES[n.type_id].category == "Uncertainty Models"
+            )
+
+        if not group_nodes:
+            continue
+
+        lines.append(header)
+        lines.append("")
+
+        for node in group_nodes:
+            # Emit all upstream dependencies first
+            upstream = _upstream_topo_order(graph, node.id)
+            for dep in upstream:
+                if dep.id not in emitted:
+                    code = _emit_node(dep, var_names, graph)
+                    if code:
+                        lines.extend(code)
+                        lines.append("")
+                    emitted.add(dep.id)
+
+            # Emit the node itself
+            if node.id not in emitted:
+                code = _emit_node(node, var_names, graph)
+                if code:
+                    lines.extend(code)
+                    lines.append("")
+                emitted.add(node.id)
+
+
+def _upstream_topo_order(graph: GraphModel, node_id: str) -> list[NodeModel]:
+    """Return all upstream nodes of *node_id* in topological order."""
+    # Collect all upstream node IDs via BFS
+    upstream_ids: set[str] = set()
+    queue = [node_id]
     while queue:
-        queue.sort()  # deterministic order for nodes at same depth
         nid = queue.pop(0)
+        for edge in graph.edges:
+            if edge.target_node_id == nid and edge.source_node_id not in upstream_ids:
+                upstream_ids.add(edge.source_node_id)
+                queue.append(edge.source_node_id)
+
+    # Build a sub-graph and topologically sort it
+    sub_deps: dict[str, set[str]] = {nid: set() for nid in upstream_ids}
+    for edge in graph.edges:
+        if edge.target_node_id in upstream_ids and edge.source_node_id in upstream_ids:
+            sub_deps[edge.target_node_id].add(edge.source_node_id)
+
+    ordered: list[NodeModel] = []
+    in_degree = {nid: len(deps) for nid, deps in sub_deps.items()}
+    ready = sorted(nid for nid, deg in in_degree.items() if deg == 0)
+
+    while ready:
+        nid = ready.pop(0)
         ordered.append(graph.nodes[nid])
-        for other_nid, deps in dependencies.items():
+        for other_nid, deps in sub_deps.items():
             if nid in deps:
                 in_degree[other_nid] -= 1
                 if in_degree[other_nid] == 0:
-                    queue.append(other_nid)
-
-    # Any remaining nodes (cycles) get appended at the end
-    seen = {n.id for n in ordered}
-    for node in graph.nodes.values():
-        if node.id not in seen:
-            ordered.append(node)
+                    ready.append(other_nid)
+                    ready.sort()
 
     return ordered
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 
 from midas_gui.script_generator import (
-    _dependency_order,
     _sanitize_var,
     generate_script,
 )
@@ -29,48 +28,6 @@ class TestSanitizeVar:
 
     def test_empty_becomes_node(self):
         assert _sanitize_var("") == "node"
-
-
-# ── _dependency_order ──────────────────────────────────────────────────
-
-
-class TestDependencyOrder:
-    def test_source_before_target(self):
-        g = GraphModel()
-        arr = g.add_node("Array")
-        plf = g.add_node("PiecewiseLinearField")
-        g.add_edge(arr.id, "data", plf.id, "axis")
-
-        order = _dependency_order(g)
-        ids = [n.id for n in order]
-        assert ids.index(arr.id) < ids.index(plf.id)
-
-    def test_chain_order(self):
-        """A -> B -> C should produce A, B, C."""
-        g = GraphModel()
-        arr = g.add_node("Array")
-        gl = g.add_node("GaussianLikelihood")
-        dl = g.add_node("DiagnosticLikelihood")
-        g.add_edge(arr.id, "data", gl.id, "y_data")
-        g.add_edge(gl.id, "likelihood", dl.id, "likelihood")
-
-        order = _dependency_order(g)
-        ids = [n.id for n in order]
-        assert ids.index(arr.id) < ids.index(gl.id)
-        assert ids.index(gl.id) < ids.index(dl.id)
-
-    def test_unconnected_nodes_included(self):
-        g = GraphModel()
-        a = g.add_node("Array")
-        b = g.add_node("Array")
-        order = _dependency_order(g)
-        assert len(order) == 2
-
-    def test_all_nodes_present(self):
-        g = GraphModel()
-        nodes = [g.add_node("Array") for _ in range(5)]
-        order = _dependency_order(g)
-        assert {n.id for n in order} == {n.id for n in nodes}
 
 
 # ── generate_script: Array node ────────────────────────────────────────
@@ -319,22 +276,10 @@ class TestGenerateScriptPosterior:
         assert "build_posterior" not in script
 
 
-# ── generate_script: comments and runnable flags ───────────────────────
+# ── generate_script: runnable flag ─────────────────────────────────────
 
 
 class TestGenerateScriptFlags:
-    def test_comments_flag(self):
-        g = GraphModel()
-        g.add_node("Array")
-        script = generate_script(g, comments=True)
-        assert "# ── Analysis construction" in script
-
-    def test_no_comments_by_default(self):
-        g = GraphModel()
-        g.add_node("Array")
-        script = generate_script(g)
-        assert "# ── Analysis construction" not in script
-
     def test_runnable_template(self):
         g = GraphModel()
         g.add_node("Array")
@@ -347,12 +292,6 @@ class TestGenerateScriptFlags:
         g = GraphModel()
         g.add_node("Array")
         script = generate_script(g, runnable=True)
-        compile(script, "<generated>", "exec")
-
-    def test_runnable_with_comments_is_valid_python(self):
-        g = GraphModel()
-        g.add_node("Array")
-        script = generate_script(g, runnable=True, comments=True)
         compile(script, "<generated>", "exec")
 
     def test_runnable_not_included_by_default(self):

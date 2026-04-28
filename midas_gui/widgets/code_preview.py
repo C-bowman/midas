@@ -86,10 +86,6 @@ class CodePreview(QWidget):
         self.runnable_check.toggled.connect(self.refresh)
         opts.addWidget(self.runnable_check)
 
-        self.comments_check = QCheckBox("Include comments")
-        self.comments_check.toggled.connect(self.refresh)
-        opts.addWidget(self.comments_check)
-
         opts.addStretch()
 
         export_btn = QPushButton("Export .py")
@@ -119,7 +115,6 @@ class CodePreview(QWidget):
         code = generate_script(
             self.graph,
             runnable=self.runnable_check.isChecked(),
-            comments=self.comments_check.isChecked(),
             imported_modules=imported,
         )
         self.text_edit.setPlainText(code)
