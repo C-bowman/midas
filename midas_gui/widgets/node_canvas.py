@@ -887,6 +887,16 @@ class NodeCanvas(QGraphicsView):
             for item in self.node_items.values():
                 item.setSelected(False)
             return
+        if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+            factor = 1.15
+            self._zoom *= factor
+            self.scale(factor, factor)
+            return
+        if key == Qt.Key.Key_Minus:
+            factor = 1.15
+            self._zoom /= factor
+            self.scale(1 / factor, 1 / factor)
+            return
 
         super().keyPressEvent(event)
 
