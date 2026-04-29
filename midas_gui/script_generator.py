@@ -3,6 +3,60 @@ from textwrap import dedent
 from midas_gui.session import GraphModel, NodeModel, Edge, NODE_TYPES
 
 
+optimization_template = \
+"""
+
+# ── Optimization ──────────────────────────────────────────
+from scipy.optimize import minimize
+from midas import posterior
+
+# initial guess for optimization
+initial_guess = np.ones(PlasmaState.n_params)  # TODO: replace with an informed guess
+
+# Build bounds for optimization and sampling
+bounds = PlasmaState.build_bounds(
+    parameter_bounds={p: (0.0, 10.0) for p in PlasmaState.parameter_set}  # TODO: specify informed bounds
+)
+
+opt_result = minimize(
+    posterior.cost,
+    x0=initial_guess,
+    jac=posterior.cost_gradient,
+    method='L-BFGS-B',
+    bounds=bounds,
+)
+map_estimate_params = opt_result.x
+"""
+
+mcmc_template = \
+"""
+
+# ── MCMC Sampling ─────────────────────────────────────────
+from inference.approx import conditional_moments
+from inference.mcmc import HamiltonianChain
+
+# Use conditional variance to estimate inverse-mass for the HMC sampler
+_, conditional_variance = conditional_moments(
+    posterior=posterior.log_probability,
+    conditioning_point=map_estimate_params,
+    bounds=[b for b in bounds],
+)
+
+chain = HamiltonianChain(
+    posterior=posterior.log_probability,
+    grad=posterior.gradient,
+    start=map_estimate_params,
+    inverse_mass=conditional_variance,
+    bounds=bounds.T,
+)
+chain.advance(5000)
+samples = chain.get_sample(burn=1000)
+"""
+
+
+
+
+
 def generate_script(
     graph: GraphModel,
     runnable: bool = False,
@@ -100,42 +154,8 @@ def generate_script(
             )""").splitlines())
 
     if runnable:
-        lines.extend(dedent(
-            """
-
-            # ── Optimization ──────────────────────────────────────────
-            from scipy.optimize import minimize
-            from midas import posterior
-
-            # initial guess for optimization
-            theta0 = np.ones(PlasmaState.n_params)
-
-            # You can build bounds here using PlasmaState.build_bounds()
-            bounds = None
-
-            result = minimize(
-                posterior.cost,
-                x0=theta0,
-                jac=posterior.cost_gradient,
-                method='L-BFGS-B',
-                bounds=bounds,
-            )
-            theta_map = result.x
-            """).splitlines())
-        lines.extend(dedent(
-            """
-            
-            # ── MCMC Sampling ─────────────────────────────────────────
-            from inference.mcmc import HamiltonianChain
-            
-            chain = HamiltonianChain(
-                posterior=posterior.log_probability,
-                grad=posterior.gradient,
-                start=theta_map,
-            )
-            chain.advance(5000)
-            samples = chain.get_sample(burn=1000)
-            """).splitlines())
+        lines.extend(dedent(optimization_template).splitlines())
+        lines.extend(dedent(mcmc_template).splitlines())
 
     return "\n".join(lines) + "\n"
 
