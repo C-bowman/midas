@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
+    QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox, QApplication,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QCloseEvent
@@ -261,7 +261,17 @@ class MainWindow(QMainWindow):
         from midas_gui.introspection import discover_user_module
         from midas_gui.session import NODE_TYPES
 
-        specs = discover_user_module(path)
+        try:
+            specs = discover_user_module(path)
+        except Exception:
+            import traceback
+            self._show_traceback_dialog(
+                "Import Failed",
+                f"An error occurred while importing:\n{path}",
+                traceback.format_exc(),
+            )
+            return
+
         if not specs:
             QMessageBox.information(
                 self, "Import Module",
@@ -296,4 +306,43 @@ class MainWindow(QMainWindow):
 
     def _open_settings(self):
         dialog = SettingsDialog(self._settings, self)
+        dialog.exec()
+
+    def _show_traceback_dialog(self, title: str, summary: str, traceback_text: str):
+        """Show a dialog with a summary message and a scrollable traceback view."""
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QLabel, QPlainTextEdit,
+            QDialogButtonBox, QPushButton, QHBoxLayout,
+        )
+        from PySide6.QtGui import QFont
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setMinimumSize(600, 400)
+
+        layout = QVBoxLayout(dialog)
+
+        label = QLabel(summary)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+        text_edit = QPlainTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(traceback_text)
+        font = QFont("Cascadia Code", 9)
+        if not font.exactMatch():
+            font = QFont("Consolas", 9)
+        text_edit.setFont(font)
+        layout.addWidget(text_edit)
+
+        button_row = QHBoxLayout()
+        copy_btn = QPushButton("Copy to Clipboard")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(traceback_text))
+        button_row.addWidget(copy_btn)
+        button_row.addStretch()
+        ok_btn = QPushButton("OK")
+        ok_btn.clicked.connect(dialog.accept)
+        button_row.addWidget(ok_btn)
+        layout.addLayout(button_row)
+
         dialog.exec()

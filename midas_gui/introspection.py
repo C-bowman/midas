@@ -334,8 +334,6 @@ def discover_user_module(file_path: str) -> dict[str, NodeTypeSpec]:
             return {}
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-    except Exception:
-        return {}
     finally:
         if added:
             sys.path.remove(parent)
