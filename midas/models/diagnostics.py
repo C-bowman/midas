@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
-
 from numpy import ndarray
-
 from midas import Parameters, Fields, FieldRequest
 
 

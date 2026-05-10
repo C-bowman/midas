@@ -1,8 +1,7 @@
 from numpy import ndarray, sqrt, arctan2
 from scipy.interpolate import RectBivariateSpline
 from abc import ABC, abstractmethod
-
-coordinates = dict[str, ndarray]
+from midas.parameters import Coordinates
 
 
 class CoordinateTransform(ABC):
@@ -10,7 +9,7 @@ class CoordinateTransform(ABC):
     outputs: tuple[str]
 
     @abstractmethod
-    def __call__(self, input_coords: coordinates) -> coordinates:
+    def __call__(self, input_coords: Coordinates) -> Coordinates:
         pass
 
 
@@ -29,7 +28,7 @@ class PsiTransform(CoordinateTransform):
         self.psi = psi
         self.spline = RectBivariateSpline(x=R, y=z, z=psi)
 
-    def __call__(self, coords: coordinates) -> coordinates:
+    def __call__(self, coords: Coordinates) -> Coordinates:
         return {"psi": self.spline(x=coords["R"], y=coords["z"], grid=False)}
 
 
@@ -37,7 +36,7 @@ class CylindricalTransform(CoordinateTransform):
     inputs = ("x", "y", "z")
     outputs = ("R", "z", "phi")
 
-    def __call__(self, coords: coordinates) -> coordinates:
+    def __call__(self, coords: Coordinates) -> Coordinates:
         return {
             "R": sqrt(coords["x"] ** 2 + coords["y"] ** 2),
             "z": coords["z"],

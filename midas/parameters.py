@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from numpy import ndarray
 
+Coordinates = dict[str, ndarray]
+
 
 @dataclass
 class ParameterVector:
@@ -39,7 +41,7 @@ class FieldRequest:
         values.
     """
     name: str
-    coordinates: dict[str, ndarray]
+    coordinates: Coordinates
 
     def __post_init__(self):
         # validate the inputs
@@ -178,7 +180,7 @@ def validate_field_requests(model, error_source: str, description: str):
         )
 
 
-def validate_coordinates(coordinates: dict[str, ndarray], error_source: str):
+def validate_coordinates(coordinates: Coordinates, error_source: str):
     if not isinstance(coordinates, dict):
         raise TypeError(
             f"""\n

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from numpy import arange, concatenate, diff, ndarray, zeros, exp
 from scipy.linalg import solve
 from tokamesh.mesh import TriangularMesh
-from midas.parameters import FieldRequest, ParameterVector, Parameters
+from midas.parameters import Coordinates, FieldRequest, ParameterVector, Parameters
 from midas.parameters import validate_coordinates
 
 
@@ -192,7 +192,7 @@ class TriangularMeshField(FieldModel):
     def __init__(
         self,
         field_name: str,
-        mesh_coordinates: dict[str, ndarray],
+        mesh_coordinates: Coordinates,
         triangle_vertices: ndarray,
     ):
         validate_coordinates(mesh_coordinates, error_source="TriangularMeshField")
