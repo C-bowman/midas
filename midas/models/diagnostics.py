@@ -40,7 +40,7 @@ class DiagnosticModel(ABC):
 
         :param parameters_and_fields: \
             The parameter and field values requested via the ``ParameterVector`` and
-            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            ``FieldRequest`` objects stored in ``parameters`` and ``fields``
             instance variables.
 
             The names of the unpacked keyword arguments correspond to the ``name``

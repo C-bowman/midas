@@ -56,11 +56,11 @@ class UncertaintyModel(ABC):
 
 class ConstantUncertainty(UncertaintyModel):
     """
-    Models the certainty on a set of data given to a likelihood function as a single
+    Models the uncertainty on a set of data given to a likelihood function as a single
     value shared by all the data.
 
     :param n_data: \
-        The number data points for which uncertainties are being modelled.
+        The number of data points for which uncertainties are being modelled.
 
     :param parameter_name: \
         The name of the parameter which sets the uncertainty value for all data points.
@@ -83,7 +83,7 @@ class ConstantUncertainty(UncertaintyModel):
 
 class LinearUncertainty(UncertaintyModel):
     """
-    Models the certainty on a set of data given to a likelihood function as a linear
+    Models the uncertainty on a set of data given to a likelihood function as a linear
     function of the data values.
 
     :param y_data: \

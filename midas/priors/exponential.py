@@ -22,7 +22,7 @@ class ExponentialPrior(BasePrior):
         any values passed to the ``parameter_vector`` arguments.
 
     :param parameter_vector: \
-        A ``ParameterVector`` specifying which parameters to which the exponential prior
+        A ``ParameterVector`` specifying the parameters to which the exponential prior
         will be applied.
     """
 
