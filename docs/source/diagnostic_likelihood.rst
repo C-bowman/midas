@@ -79,10 +79,10 @@ requirements:
   ``midas.models.DiagnosticModel.predictions`` and
   ``predictions_and_jacobians`` methods.
 
-* Instances of the class must have a `parameters` instance attribute, which is
+* Instances of the class must have a ``parameters`` instance attribute, which is
   an instance of the :ref:`Parameters <Parameters-ref>` class.
 
-* Instances of the class must have a `fields` instance attribute, which is
+* Instances of the class must have a ``fields`` instance attribute, which is
   an instance of the :ref:`Fields <Fields-ref>` class.
 
 For example, a simple straight-line model would not require any field values,
@@ -104,12 +104,17 @@ but would require parameters to define the gradient and offset:
             )
             self.fields = Fields()
 
-        def predictions(self, gradient: float, y_intercept: float) -> ndarray:
+        def predictions(self, gradient: ndarray, y_intercept: ndarray) -> ndarray:
             return gradient * self.x + y_intercept
 
-        def predictions_and_jacobians(self, gradient: float, y_intercept: float) -> tuple:
+        def predictions_and_jacobians(
+            self, gradient: ndarray, y_intercept: ndarray
+        ) -> tuple[ndarray, dict[str, ndarray]]:
             predictions = gradient * self.x + y_intercept
-            jacobians = {"gradient": self.x, "y_intercept": ones_like(self.x)}
+            jacobians = {
+                "gradient": self.x,
+                "y_intercept": ones_like(self.x),
+            }
             return predictions, jacobians
 
 
@@ -151,6 +156,6 @@ we can create an instance of :ref:`DiagnosticLikelihood <DiagnosticLikelihood-re
     straight_line_likelihood = DiagnosticLikelihood(
         diagnostic_model=straight_line_model,
         likelihood=gaussian_likelihood,
-        name="straight_line"
+        name="straight_line",
     )
 

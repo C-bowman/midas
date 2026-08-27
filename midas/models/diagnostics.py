@@ -52,8 +52,10 @@ class DiagnosticModel(ABC):
             followed by the Jacobians of the predictions with respect to the given
             parameter and field values.
 
-            The Jacobians must be returned as a dictionary mapping the parameter and
-            field names to the corresponding Jacobians as 2D arrays.
+            The Jacobians must be returned as a dictionary mapping each parameter or
+            field name to its corresponding Jacobian. A 1D array may be returned for
+            a scalar parameter or field input. For vector inputs, the Jacobian must
+            have shape ``(n_predictions, n_input_values)``.
         """
 
 

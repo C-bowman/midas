@@ -9,10 +9,12 @@ To do this, MIDAS inspects the models and priors that are included in the proble
 to determine the full set of unique parameters which are required, and creates a
 mapping between each parameter and the section of the 1D array it occupies.
 
-To construct the posterior function, we call `PlasmaState.build_posterior` and pass
-any diagnostic models, priors and field models we wish to include in the analysis:
+To construct the posterior function, we call ``PlasmaState.build_posterior`` and pass
+the diagnostic likelihoods, priors and field models we wish to include in the analysis:
 
 .. code-block:: python
+
+    from midas import PlasmaState
 
     # collect all the diagnostics we want to include in the analysis
     diagnostics = [brem_likelihood, pressure_likelihood, interferometer_likelihood]
@@ -30,7 +32,8 @@ any diagnostic models, priors and field models we wish to include in the analysi
         field_models=field_models,
     )
 
-After calling `PlasmaState.build_posterior`, we can import the :ref:`midas.posterior <posterior-ref>`
+After calling ``PlasmaState.build_posterior``, we can import the
+:ref:`midas.posterior <posterior-ref>`
 module, and use its functions to evaluate the posterior or its gradient:
 
 .. code-block:: python

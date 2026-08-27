@@ -60,8 +60,10 @@ class FieldModel(ABC):
             The field values as a 1D array, followed by the Jacobians of the field
             values with respect to the given parameter values.
 
-            The Jacobians must be returned as a dictionary mapping the parameter names
-            to the corresponding Jacobians as 2D arrays.
+            The Jacobians must be returned as a dictionary mapping each parameter name
+            to its corresponding Jacobian. A 1D array may be returned for a scalar
+            parameter. For parameter vectors, the Jacobian must have shape
+            ``(n_field_values, n_parameter_values)``.
         """
         pass
 

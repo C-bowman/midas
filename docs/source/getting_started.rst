@@ -19,10 +19,12 @@ Structure of a MIDAS analysis
 
 The high-level structure of a MIDAS analysis can be broken down as:
 
-* Create a :ref:`DiagnosticModel <DiagnosticModel-ref>` object for each diagnostic which is to be included in the
-  analysis.
+* Create a :ref:`DiagnosticModel <DiagnosticModel-ref>` and likelihood function for
+  each diagnostic, then combine them in a
+  :ref:`DiagnosticLikelihood <DiagnosticLikelihood-ref>` object.
 * Specify the prior distribution (or its components) using classes from the
-  :ref:`midas.priors <priors-ref>` module (or implement your own using the provided base-class.
+  :ref:`midas.priors <priors-ref>` module (or implement your own using the provided
+  base class).
 * Build the parametrisation for the posterior distribution by calling the
   ``PlasmaState.build_posterior()`` function.
 * Use the functions in the :ref:`midas.posterior <posterior-ref>` module to evaluate the posterior
@@ -33,6 +35,6 @@ In subsequent pages we will cover each of these steps in more detail.
 Jupyter notebook examples
 -------------------------
 
-Annotated example code is available as a jupyter notebook in our
+Annotated example code is available as a Jupyter notebook in our
 `Z-effective profile inference example <https://github.com/C-bowman/midas-examples/blob/main/z-eff/z_effective_inference.ipynb>`_.
 Additional example notebooks will be added as development progresses!
