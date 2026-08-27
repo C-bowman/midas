@@ -32,6 +32,13 @@ The high-level structure of a MIDAS analysis can be broken down as:
 
 In subsequent pages we will cover each of these steps in more detail.
 
+Using the graphical interface
+-----------------------------
+
+MIDAS also provides a desktop node-graph editor for constructing analyses and
+exporting them as Python scripts. See :doc:`gui` for installation instructions
+and a guide to its main workflows.
+
 Jupyter notebook examples
 -------------------------
 
