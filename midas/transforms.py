@@ -50,6 +50,16 @@ class PsiTransform(CoordinateTransform):
         self.spline = RectBivariateSpline(x=R, y=z, z=psi)
 
     def __call__(self, coords: Coordinates) -> Coordinates:
+        """
+        Evaluate the poloidal flux at the supplied cylindrical coordinates.
+
+        :param coords: \
+            Coordinates containing ``"R"`` and ``"z"`` arrays with compatible
+            shapes.
+
+        :return: \
+            Coordinates containing the interpolated poloidal flux under ``"psi"``.
+        """
         return {"psi": self.spline(x=coords["R"], y=coords["z"], grid=False)}
 
 
@@ -63,6 +73,17 @@ class CylindricalTransform(CoordinateTransform):
     outputs = ("R", "z", "phi")
 
     def __call__(self, coords: Coordinates) -> Coordinates:
+        """
+        Convert the supplied Cartesian coordinates to cylindrical coordinates.
+
+        :param coords: \
+            Coordinates containing compatible ``"x"``, ``"y"``, and ``"z"``
+            arrays.
+
+        :return: \
+            Coordinates containing ``"R"``, ``"z"``, and ``"phi"`` arrays, where
+            ``"phi"`` is the azimuthal angle in radians.
+        """
         return {
             "R": sqrt(coords["x"] ** 2 + coords["y"] ** 2),
             "z": coords["z"],
