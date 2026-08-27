@@ -26,7 +26,7 @@ class GaussianPrior(BasePrior):
         any values passed to the ``parameter_vector`` arguments.
 
     :param parameter_vector: \
-        A ``ParameterVector`` specifying which parameters to which the Gaussian prior
+        A ``ParameterVector`` specifying the parameters to which the Gaussian prior
         will be applied.
     """
 

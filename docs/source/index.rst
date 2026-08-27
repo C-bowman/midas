@@ -7,7 +7,7 @@ MIDAS is a framework for Bayesian and integrated data analysis in Python.
 
 Use diagnostic models from any source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-MIDAS is designed to work with any diagnostic model which can by called from within Python,
+MIDAS is designed to work with any diagnostic model which can be called from within Python,
 and does not require models to be implemented within a specific framework. Instead,
 MIDAS provides tools to create a lightweight wrapper around external forward-models
 which allows them to interface with MIDAS.
@@ -23,7 +23,7 @@ with respect to the model inputs) MIDAS will automatically propagate those deriv
 through the subsequent steps in calculating the posterior log-probability, so the
 gradient of the posterior log-probability can be calculated analytically.
 
-This allows MIDAS tackle large-scale problems with hundreds or thousands of free
+This allows MIDAS to tackle large-scale problems with hundreds or thousands of free
 parameters, or to solve smaller problems quickly and routinely.
 
 Easy interfacing to the Python scientific software ecosystem
@@ -36,6 +36,7 @@ to maximise the posterior log-probability, or MCMC samplers from
 Modularity to allow easy exchange of models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Analysis in MIDAS is built from three types of models:
+
  - Diagnostic forward-models which make predictions of diagnostic signals.
  - Likelihood functions which model the uncertainties on measured data.
  - Plasma field models which give a parametrised description of the plasma state.
@@ -55,7 +56,6 @@ but is completely independent of the specific choice of parametrisation for thos
    :caption: Contents:
 
    getting_started
-   diagnostic_models
    diagnostic_likelihood
    defining_priors
    choosing_field_models
@@ -67,3 +67,5 @@ but is completely independent of the specific choice of parametrisation for thos
    likelihoods_module
    state_module
    posterior_module
+   transforms_module
+   gui

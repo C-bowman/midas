@@ -10,7 +10,7 @@ class BetaPrior(BasePrior):
     set of parameters.
 
     :param name: \
-        The name used to identify the exponential prior.
+        The name used to identify the beta prior.
 
     :param alpha: \
         The 'alpha' shape parameter of the beta prior corresponding to each parameter or
@@ -21,12 +21,12 @@ class BetaPrior(BasePrior):
         requested field value. All values of 'beta' must be greater than zero.
 
     :param field_request: \
-        A ``FieldRequest`` specifying the field and coordinates to which the exponential
+        A ``FieldRequest`` specifying the field and coordinates to which the beta
         prior will be applied. If specified, ``field_request`` will override
         any values passed to the ``parameter_vector`` arguments.
 
     :param parameter_vector: \
-        A ``ParameterVector`` specifying which parameters to which the exponential prior
+        A ``ParameterVector`` specifying the parameters to which the beta prior
         will be applied.
 
     :param limits: \

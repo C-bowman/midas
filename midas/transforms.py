@@ -5,6 +5,13 @@ from midas.parameters import Coordinates
 
 
 class CoordinateTransform(ABC):
+    """
+    An abstract base class for transformations between coordinate systems.
+
+    Subclasses declare the required coordinate names in ``inputs`` and the generated
+    coordinate names in ``outputs``.
+    """
+
     inputs: tuple[str]
     outputs: tuple[str]
 
@@ -14,6 +21,20 @@ class CoordinateTransform(ABC):
 
 
 class PsiTransform(CoordinateTransform):
+    """
+    Transform cylindrical ``R`` and ``z`` coordinates to a poloidal-flux coordinate.
+
+    :param R: \
+        The 1D major-radius grid on which ``psi`` is defined.
+
+    :param z: \
+        The 1D vertical-coordinate grid on which ``psi`` is defined.
+
+    :param psi: \
+        The poloidal-flux values on the ``(R, z)`` grid as a 2D array with shape
+        ``(R.size, z.size)``.
+    """
+
     inputs = ("R", "z")
     outputs = ("psi",)
 
@@ -29,14 +50,40 @@ class PsiTransform(CoordinateTransform):
         self.spline = RectBivariateSpline(x=R, y=z, z=psi)
 
     def __call__(self, coords: Coordinates) -> Coordinates:
+        """
+        Evaluate the poloidal flux at the supplied cylindrical coordinates.
+
+        :param coords: \
+            Coordinates containing ``"R"`` and ``"z"`` arrays with compatible
+            shapes.
+
+        :return: \
+            Coordinates containing the interpolated poloidal flux under ``"psi"``.
+        """
         return {"psi": self.spline(x=coords["R"], y=coords["z"], grid=False)}
 
 
 class CylindricalTransform(CoordinateTransform):
+    """
+    Transform Cartesian ``x``, ``y``, and ``z`` coordinates to ``R``, ``z``, and
+    azimuthal angle ``phi``.
+    """
+
     inputs = ("x", "y", "z")
     outputs = ("R", "z", "phi")
 
     def __call__(self, coords: Coordinates) -> Coordinates:
+        """
+        Convert the supplied Cartesian coordinates to cylindrical coordinates.
+
+        :param coords: \
+            Coordinates containing compatible ``"x"``, ``"y"``, and ``"z"``
+            arrays.
+
+        :return: \
+            Coordinates containing ``"R"``, ``"z"``, and ``"phi"`` arrays, where
+            ``"phi"`` is the azimuthal angle in radians.
+        """
         return {
             "R": sqrt(coords["x"] ** 2 + coords["y"] ** 2),
             "z": coords["z"],

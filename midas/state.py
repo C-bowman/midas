@@ -9,7 +9,7 @@ from midas.parameters import validate_parameters, validate_field_requests
 
 class LikelihoodFunction(ABC):
     """
-    An abstract base-class for likelihood function.
+    An abstract base class for likelihood functions.
     """
     parameters: Parameters
 
@@ -143,6 +143,13 @@ class DiagnosticLikelihood:
 
 
 class BasePrior(ABC):
+    """
+    An abstract base class for prior probability distributions.
+
+    Subclasses define the log-probability and its gradients for the parameter vectors
+    and field values listed in their ``parameters`` and ``fields`` attributes.
+    """
+
     parameters: Parameters
     fields: Fields
     name: str
@@ -169,11 +176,11 @@ class BasePrior(ABC):
     @abstractmethod
     def gradients(self, **parameters_and_fields: ndarray) -> dict[str, ndarray]:
         """
-        Calculate the prior log-probability.
+        Calculate the gradients of the prior log-probability.
 
         :param parameters_and_fields: \
             The parameter and field values requested via the ``ParameterVector`` and
-            ``FieldRequest`` objects stored in ``parameters`` and ``field_requests``
+            ``FieldRequest`` objects stored in ``parameters`` and ``fields``
             instance variables.
 
             The names of the unpacked keyword arguments correspond to the ``name``
@@ -217,6 +224,15 @@ class BasePrior(ABC):
 
 
 class PlasmaState:
+    """
+    Store the global parameterisation and current values of a MIDAS posterior.
+
+    Calling ``build_posterior`` validates the posterior components and constructs the
+    mappings between the flat posterior parameter vector, named parameter vectors, and
+    field models. The current parameter vector is stored in ``theta`` while evaluating
+    a posterior.
+    """
+
     theta: ndarray
     radius: ndarray
     n_params: int

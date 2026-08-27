@@ -41,7 +41,7 @@ class GaussianProcessPrior(BasePrior):
 
     :param coordinates: \
         A set of coordinates (a dictionary mapping coordinate names as ``str`` to
-        coordinate values as ``numpy.ndarray``) corresponding the values specified
+        coordinate values as ``numpy.ndarray``) corresponding to the values specified
         by either the ``field_request`` or ``parameter_vector`` keyword arguments.
     """
 

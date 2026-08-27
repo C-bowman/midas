@@ -7,7 +7,7 @@ Built-in prior distributions
 .. _BasePrior-ref:
 
 .. autoclass:: midas.priors.BasePrior
-   :members: probability, probability_gradient
+   :members: probability, gradients
 
 
 .. autoclass:: midas.priors.GaussianPrior

@@ -60,8 +60,10 @@ class FieldModel(ABC):
             The field values as a 1D array, followed by the Jacobians of the field
             values with respect to the given parameter values.
 
-            The Jacobians must be returned as a dictionary mapping the parameter names
-            to the corresponding Jacobians as 2D arrays.
+            The Jacobians must be returned as a dictionary mapping each parameter name
+            to its corresponding Jacobian. A 1D array may be returned for a scalar
+            parameter. For parameter vectors, the Jacobian must have shape
+            ``(n_field_values, n_parameter_values)``.
         """
         pass
 
@@ -122,6 +124,21 @@ class PiecewiseLinearField(FieldModel):
 
 
 class CubicSplineField(PiecewiseLinearField):
+    """
+    Models a chosen field as a cubic-spline 1D profile.
+
+    :param field_name: \
+        The name of the field to be modelled.
+
+    :param axis: \
+        Coordinate values specifying the locations of the basis functions which make
+        up the profile. The number of free parameters is equal to the size of ``axis``.
+        Values must be given in strictly ascending order.
+
+    :param axis_name: \
+        The name of the coordinate over which the 1D profile is defined.
+    """
+
     def __init__(self, field_name: str, axis: ndarray, axis_name: str):
         super().__init__(field_name, axis, axis_name)
 
@@ -133,6 +150,21 @@ class CubicSplineField(PiecewiseLinearField):
 
 
 class BSplineField(PiecewiseLinearField):
+    """
+    Models a chosen field as a B-spline 1D profile.
+
+    :param field_name: \
+        The name of the field to be modelled.
+
+    :param axis: \
+        Coordinate values specifying the locations of the basis functions which make
+        up the profile. The number of free parameters is equal to the size of ``axis``.
+        Values must be given in strictly ascending order.
+
+    :param axis_name: \
+        The name of the coordinate over which the 1D profile is defined.
+    """
+
     def __init__(self, field_name: str, axis: ndarray, axis_name: str):
         super().__init__(field_name, axis, axis_name)
 
@@ -144,6 +176,24 @@ class BSplineField(PiecewiseLinearField):
 
 
 class ExSplineField(PiecewiseLinearField):
+    """
+    Models a positive field as the exponential of a B-spline 1D profile.
+
+    The model parameters are the coefficients of the B-spline representation of the
+    natural logarithm of the field.
+
+    :param field_name: \
+        The name of the field to be modelled.
+
+    :param axis: \
+        Coordinate values specifying the locations of the basis functions which make
+        up the profile. The number of free parameters is equal to the size of ``axis``.
+        Values must be given in strictly ascending order.
+
+    :param axis_name: \
+        The name of the coordinate over which the 1D profile is defined.
+    """
+
     def __init__(self, field_name: str, axis: ndarray, axis_name: str):
         super().__init__(field_name, axis, axis_name)
 

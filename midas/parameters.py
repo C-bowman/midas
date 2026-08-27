@@ -10,7 +10,7 @@ class ParameterVector:
     A class used for specifying the parameters required to evaluate a
     diagnostic model, field model or prior distribution.
 
-    :param: name \
+    :param name: \
         The name of the parameter(s).
 
     :param size: \

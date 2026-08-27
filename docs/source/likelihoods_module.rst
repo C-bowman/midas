@@ -45,7 +45,7 @@ Abstract base classes
 .. _LikelihoodFunction-ref:
 
 .. autoclass:: midas.likelihoods.LikelihoodFunction
-   :members: log_likelihood, predictions_derivative
+   :members: log_likelihood, derivatives
 
 
 .. autoclass:: midas.likelihoods.UncertaintyModel

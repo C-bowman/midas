@@ -48,19 +48,21 @@ class UncertaintyModel(ABC):
             The uncertainty values as a 1D array, followed by the Jacobians of the
             uncertainties with respect to the given parameter values.
 
-            The Jacobians must be returned as a dictionary mapping the parameter names
-            to the corresponding Jacobians as 2D arrays.
+            The Jacobians must be returned as a dictionary mapping each parameter name
+            to its corresponding Jacobian. A 1D array may be returned for a scalar
+            parameter. For parameter vectors, the Jacobian must have shape
+            ``(n_parameter_values, n_uncertainties)``.
         """
         pass
 
 
 class ConstantUncertainty(UncertaintyModel):
     """
-    Models the certainty on a set of data given to a likelihood function as a single
+    Models the uncertainty on a set of data given to a likelihood function as a single
     value shared by all the data.
 
     :param n_data: \
-        The number data points for which uncertainties are being modelled.
+        The number of data points for which uncertainties are being modelled.
 
     :param parameter_name: \
         The name of the parameter which sets the uncertainty value for all data points.
@@ -83,7 +85,7 @@ class ConstantUncertainty(UncertaintyModel):
 
 class LinearUncertainty(UncertaintyModel):
     """
-    Models the certainty on a set of data given to a likelihood function as a linear
+    Models the uncertainty on a set of data given to a likelihood function as a linear
     function of the data values.
 
     :param y_data: \
