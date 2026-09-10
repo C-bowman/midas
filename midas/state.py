@@ -64,6 +64,7 @@ class DiagnosticLikelihood:
         name: str,
     ):
         self.__validate_diagnostic_model(diagnostic_model)
+        self.__validate_likelihood(likelihood)
         self.forward_model = diagnostic_model
         self.likelihood = likelihood
         self.name = name
@@ -140,6 +141,24 @@ class DiagnosticLikelihood:
         description = "given 'diagnostic_model'"
         validate_parameters(diagnostic_model, error_source, description)
         validate_field_requests(diagnostic_model, error_source, description)
+
+    @staticmethod
+    def __validate_likelihood(likelihood: LikelihoodFunction):
+        if not isinstance(likelihood, LikelihoodFunction):
+            raise TypeError(
+                f"""\n
+                \r[ DiagnosticLikelihood error ]
+                \r>> The 'likelihood' argument must be an instance of
+                \r>> ``LikelihoodFunction``, but instead has type:
+                \r>> {type(likelihood)}
+                """
+            )
+
+        validate_parameters(
+            likelihood,
+            error_source="DiagnosticLikelihood",
+            description="given 'likelihood'",
+        )
 
 
 class BasePrior(ABC):
@@ -279,6 +298,7 @@ class PlasmaState:
         cls.__validate_diagnostics(diagnostics)
         cls.__validate_priors(priors)
         cls.__validate_field_models(field_models)
+        cls.__validate_component_names([*diagnostics, *priors])
 
         cls.components = [*diagnostics, *priors]
         cls.field_models = {f.name: f for f in field_models}
@@ -333,6 +353,16 @@ class PlasmaState:
         [all_parameters.extend(d.likelihood_parameters) for d in diagnostics]
         [all_parameters.extend(p.parameters) for p in priors]
         [all_parameters.extend(f.parameters) for f in field_models]
+
+        if len(all_parameters) == 0:
+            raise ValueError(
+                """
+                \r[ PlasmaState.build_posterior error ]
+                \r>> The posterior must contain at least one parameter, but no
+                \r>> parameters were specified by its diagnostics, likelihoods,
+                \r>> priors or field models.
+                """
+            )
 
         # get the sizes of all unique ParameterVectors
         parameter_sizes = {}
@@ -608,6 +638,37 @@ class PlasmaState:
                 )
 
     @staticmethod
+    def __validate_component_names(
+        components: Sequence[DiagnosticLikelihood | BasePrior],
+    ):
+        component_names = []
+        for index, component in enumerate(components):
+            name = getattr(component, "name", None)
+            if not isinstance(name, str) or len(name) == 0:
+                raise ValueError(
+                    f"""\n
+                    \r[ PlasmaState.build_posterior error ]
+                    \r>> Every posterior component must have a non-empty string 'name'
+                    \r>> attribute, but the component at index {index} has the name:
+                    \r>> {name!r}
+                    """
+                )
+            component_names.append(name)
+
+        duplicate_names = sorted(
+            name for name in set(component_names) if component_names.count(name) > 1
+        )
+        if duplicate_names:
+            raise ValueError(
+                f"""\n
+                \r[ PlasmaState.build_posterior error ]
+                \r>> Every posterior component must have a unique name, but the
+                \r>> following names are used by more than one component:
+                \r>> {duplicate_names}
+                """
+            )
+
+    @staticmethod
     def __validate_field_models(field_models: list[FieldModel]):
         # first check that the given models are valid:
         valid_models = isinstance(field_models, Sequence) and all(
@@ -621,6 +682,37 @@ class PlasmaState:
                 \r>> whose types derive from the 'FieldModel' abstract base class.
                 """
             )
+
+        parameter_owners = {}
+        for index, model in enumerate(field_models):
+            if not isinstance(model.name, str) or len(model.name) == 0:
+                raise ValueError(
+                    f"""\n
+                    \r[ PlasmaState.build_posterior error ]
+                    \r>> Every field model must have a non-empty string 'name'
+                    \r>> attribute, but the model at index {index} has the name:
+                    \r>> {model.name!r}
+                    """
+                )
+
+            validate_parameters(
+                model,
+                error_source="PlasmaState.build_posterior",
+                description=f"field model at index {index}",
+            )
+
+            for parameter in model.parameters:
+                if parameter.name in parameter_owners:
+                    raise ValueError(
+                        f"""\n
+                        \r[ PlasmaState.build_posterior error ]
+                        \r>> The parameter name '{parameter.name}' is used by the field
+                        \r>> models '{parameter_owners[parameter.name]}' and
+                        \r>> '{model.name}', but each field-model parameter name must
+                        \r>> belong to only one field model.
+                        """
+                    )
+                parameter_owners[parameter.name] = model.name
 
         # check that each model is for a unique field
         unique_fields = len({f.name for f in field_models}) == len(field_models)
