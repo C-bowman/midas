@@ -67,7 +67,7 @@ class ExponentialPrior(BasePrior):
     def probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]
         if (target_values < 0.).any():
-            return -1e-50
+            return -1e50
         else:
             z = -self.lam * target_values
             return z.sum()

@@ -1,8 +1,9 @@
 import pytest
-from numpy import linspace, sin, allclose
+from numpy import array, linspace, sin, allclose
 from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
+from midas import ParameterVector
 from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
 from midas.priors import BetaPrior, SoftLimitPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
@@ -10,6 +11,43 @@ from midas.state import PlasmaState
 from midas import posterior
 
 rng = default_rng(2391)
+
+
+bounded_support_test_setup = [
+    (
+        ExponentialPrior,
+        {"mean": array([1.0])},
+        array([-1.0]),
+    ),
+    (
+        BetaPrior,
+        {"alpha": array([2.0]), "beta": array([2.0]), "limits": (-0.5, 2.5)},
+        array([-0.6]),
+    ),
+    (
+        BetaPrior,
+        {"alpha": array([2.0]), "beta": array([2.0]), "limits": (-0.5, 2.5)},
+        array([2.6]),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "prior_class, kwargs, values_outside_support",
+    bounded_support_test_setup,
+    ids=["exponential-lower", "beta-lower", "beta-upper"],
+)
+def test_bounded_support_priors_reject_invalid_values(
+    prior_class, kwargs, values_outside_support
+):
+    parameter_vector = ParameterVector(name="x", size=1)
+    prior = prior_class(
+        name="bounded_prior",
+        parameter_vector=parameter_vector,
+        **kwargs,
+    )
+
+    assert prior.probability(x=values_outside_support) == -1e50
 
 
 def test_gp_prior():
