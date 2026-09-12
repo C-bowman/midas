@@ -1,4 +1,6 @@
 # MIDAS
+[![Documentation Status](https://readthedocs.org/projects/midas-fusion/badge/?version=latest)](https://midas-fusion.readthedocs.io/en/latest/?badge=latest) [![Tests](https://github.com/C-bowman/midas/actions/workflows/tests.yml/badge.svg)](https://github.com/C-bowman/midas/actions/workflows/tests.yml) [![PyPI](https://img.shields.io/pypi/v/midas-fusion)](https://pypi.org/project/midas-fusion/) [![Python](https://img.shields.io/pypi/pyversions/midas-fusion)](https://pypi.org/project/midas-fusion/) [![License: MIT](https://img.shields.io/pypi/l/midas-fusion)](LICENSE) [![Discord](https://img.shields.io/badge/Discord-Join%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/FxefCg7UZt)
+
 MIDAS is a Python framework for Bayesian and integrated data analysis.
 Some key features of MIDAS are:
 
