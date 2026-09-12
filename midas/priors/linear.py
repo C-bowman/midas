@@ -1,4 +1,4 @@
-from numpy import atleast_1d, ndarray
+from numpy import atleast_1d, full, ndarray
 
 from midas.parameters import FieldRequest, Fields, Parameters, ParameterVector
 from midas.state import BasePrior
@@ -27,12 +27,14 @@ class LinearGaussianPrior(BasePrior):
 		``n`` is the number of target values.
 
 	:param mean:
-		A finite, real, one-dimensional array with shape ``(m,)`` containing
-		the Gaussian mean for each operator output.
+		A finite, real ``float`` applied to every operator output, or a
+		one-dimensional array with shape ``(m,)`` containing one Gaussian mean
+		for each operator output.
 
 	:param standard_deviation:
-		A finite, real, one-dimensional array with shape ``(m,)`` containing
-		the positive Gaussian standard deviation for each operator output.
+		A positive, finite ``float`` applied to every operator output, or a
+		one-dimensional array with shape ``(m,)`` containing one positive
+		Gaussian standard deviation for each operator output.
 
 	:param field_request:
 		A ``FieldRequest`` specifying the field values to which the prior is
@@ -47,8 +49,8 @@ class LinearGaussianPrior(BasePrior):
 		self,
 		name: str,
 		operator: ndarray,
-		mean: ndarray,
-		standard_deviation: ndarray,
+		mean: ndarray | float,
+		standard_deviation: ndarray | float,
 		field_request: FieldRequest | None = None,
 		parameter_vector: ParameterVector | None = None,
 	):
@@ -94,6 +96,7 @@ class LinearGaussianPrior(BasePrior):
 
 		output_shape = (operator.shape[0],)
 		self.mean = atleast_1d(mean)
+		self.mean = full(output_shape, self.mean) if self.mean.size == 1 else self.mean
 		validate_numeric_input(
 			values=self.mean,
 			shape=output_shape,
@@ -103,6 +106,7 @@ class LinearGaussianPrior(BasePrior):
 		)
 
 		self.sigma = atleast_1d(standard_deviation)
+		self.sigma = full(output_shape, self.sigma) if self.sigma.size == 1 else self.sigma
 		validate_numeric_input(
 			values=self.sigma,
 			shape=output_shape,
