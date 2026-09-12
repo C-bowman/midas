@@ -1,4 +1,7 @@
 # MIDAS
+[![Documentation Status](https://readthedocs.org/projects/midas-fusion/badge/?version=latest)](https://midas-fusion.readthedocs.io/en/latest/?badge=latest)
+[![Discord](https://img.shields.io/badge/Discord-Join%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/FxefCg7UZt)
+
 MIDAS is a Python framework for Bayesian and integrated data analysis.
 Some key features of MIDAS are:
 
