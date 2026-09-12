@@ -1,4 +1,4 @@
-from numpy import ndarray, atleast_1d, log, zeros
+from numpy import full, ndarray, atleast_1d, log, zeros
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
@@ -14,12 +14,16 @@ class BetaPrior(BasePrior):
         The name used to identify the beta prior.
 
     :param alpha: \
-        The 'alpha' shape parameter of the beta prior corresponding to each parameter or
-        requested field value. All values of 'alpha' must be greater than zero.
+        The ``alpha`` shape parameter of the beta prior. This may be a positive
+        ``float``, in which case the same value is used for every parameter or
+        requested field value, or a one-dimensional ``numpy.ndarray`` containing
+        one positive value for each target.
 
     :param beta: \
-        The 'beta' shape parameter of the beta prior corresponding to each parameter or
-        requested field value. All values of 'beta' must be greater than zero.
+        The ``beta`` shape parameter of the beta prior. This may be a positive
+        ``float``, in which case the same value is used for every parameter or
+        requested field value, or a one-dimensional ``numpy.ndarray`` containing
+        one positive value for each target.
 
     :param field_request: \
         A ``FieldRequest`` specifying the field and coordinates to which the beta
@@ -39,8 +43,8 @@ class BetaPrior(BasePrior):
     def __init__(
         self,
         name: str,
-        alpha: ndarray,
-        beta: ndarray,
+        alpha: ndarray | float,
+        beta: ndarray | float,
         field_request: FieldRequest | None = None,
         parameter_vector: ParameterVector | None = None,
         limits: tuple[float, float] = (0, 1),
@@ -81,6 +85,7 @@ class BetaPrior(BasePrior):
             )
 
         self.alpha = atleast_1d(alpha)
+        self.alpha = full(self.n_targets, self.alpha) if self.alpha.size == 1 else self.alpha
         validate_numeric_input(
             values=self.alpha,
             shape=(self.n_targets,),
@@ -92,6 +97,7 @@ class BetaPrior(BasePrior):
         )
 
         self.beta = atleast_1d(beta)
+        self.beta = full(self.n_targets, self.beta) if self.beta.size == 1 else self.beta
         validate_numeric_input(
             values=self.beta,
             shape=(self.n_targets,),

@@ -182,6 +182,23 @@ def test_prior_numeric_shapes(prior_class, kwargs, info):
             prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
 
 
+@pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
+def test_prior_accepts_scalar_numeric_arguments(prior_class, kwargs, info):
+    parameter_vector = ParameterVector(name="x", size=16)
+    testing_kwargs = kwargs.copy()
+
+    for argument in info["numeric_arguments"]:
+        testing_kwargs[argument] = float(kwargs[argument][0])
+
+    prior = prior_class(
+        name="scalar_prior",
+        parameter_vector=parameter_vector,
+        **testing_kwargs,
+    )
+
+    assert prior.probability(x=info["values_inside_support"]) > -1e50
+
+
 def test_gp_prior():
     # build a linear field
     R = linspace(1, 10, 10)

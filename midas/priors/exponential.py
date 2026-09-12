@@ -1,4 +1,4 @@
-from numpy import ndarray, atleast_1d, zeros
+from numpy import full, ndarray, atleast_1d, zeros
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
@@ -14,8 +14,9 @@ class ExponentialPrior(BasePrior):
         The name used to identify the exponential prior.
 
     :param mean: \
-        The mean of the exponential prior corresponding to each parameter or requested
-        field value.
+        The mean of the exponential prior. This may be a positive ``float``, in
+        which case the same value is used for every target, or a one-dimensional
+        ``numpy.ndarray`` containing one positive value for each target.
 
     :param field_request: \
         A ``FieldRequest`` specifying the field and coordinates to which the exponential
@@ -30,7 +31,7 @@ class ExponentialPrior(BasePrior):
     def __init__(
         self,
         name: str,
-        mean: ndarray,
+        mean: ndarray | float,
         field_request: FieldRequest | None = None,
         parameter_vector: ParameterVector | None = None,
     ):
@@ -62,6 +63,7 @@ class ExponentialPrior(BasePrior):
             )
 
         self.mean = atleast_1d(mean)
+        self.mean = full(self.n_targets, self.mean) if self.mean.size == 1 else self.mean
         validate_numeric_input(
             values=self.mean,
             shape=(self.n_targets,),
