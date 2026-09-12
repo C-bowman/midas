@@ -6,6 +6,7 @@ from numpy.random import default_rng
 from midas import ParameterVector
 from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
 from midas.priors import BetaPrior, SoftLimitPrior
+from midas.priors import LinearGaussianPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
 from midas.state import PlasmaState
 from midas import posterior
@@ -72,6 +73,18 @@ prior_test_setup = [
             "numeric_arguments": ["upper_limit", "standard_deviation"],
             "values_inside_support": rng.uniform(low=-5.0, high=5.0, size=16)
         }
+    ),
+    (
+        LinearGaussianPrior,
+        {
+            "operator": rng.normal(scale=0.1, size=(12, 16)),
+            "mean": rng.uniform(low=-1.0, high=1.0, size=12),
+            "standard_deviation": rng.uniform(low=0.5, high=2.0, size=12),
+        },
+        {
+            "numeric_arguments": ["mean", "standard_deviation"],
+            "values_inside_support": rng.uniform(low=-5.0, high=5.0, size=16),
+        },
     ),
 ]
 
