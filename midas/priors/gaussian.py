@@ -2,6 +2,7 @@ from numpy import ndarray, atleast_1d
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
+from midas.validation import validate_name, validate_numeric_input
 
 
 class GaussianPrior(BasePrior):
@@ -35,24 +36,22 @@ class GaussianPrior(BasePrior):
         name: str,
         mean: ndarray,
         standard_deviation: ndarray,
-        field_request: FieldRequest = None,
-        parameter_vector: ParameterVector = None,
+        field_request: FieldRequest | None = None,
+        parameter_vector: ParameterVector | None = None,
     ):
-
+        validate_name(name, error_source="GaussianPrior")
         self.name = name
-        self.mean = atleast_1d(mean)
-        self.sigma = atleast_1d(standard_deviation)
-        self.inv_sigma = 1.0 / self.sigma
-        self.inv_sigma_sqr = self.inv_sigma**2
 
         if isinstance(field_request, FieldRequest):
             self.target = field_request.name
+            self.target_type = "field_request"
             self.n_targets = field_request.size
             self.fields = Fields(field_request)
             self.parameters = Parameters()
 
         elif isinstance(parameter_vector, ParameterVector):
             self.target = parameter_vector.name
+            self.target_type = "parameter_vector"
             self.n_targets = parameter_vector.size
             self.fields = Fields()
             self.parameters = Parameters(parameter_vector)
@@ -67,9 +66,28 @@ class GaussianPrior(BasePrior):
                 """
             )
 
-        assert self.mean.ndim == self.sigma.ndim == 1
-        assert self.mean.size == self.sigma.size == self.n_targets
-        assert isinstance(name, str)
+        self.mean = atleast_1d(mean)
+        validate_numeric_input(
+            values=self.mean,
+            shape=(self.n_targets,),
+            shape_name=self.target_type,
+            error_source="GaussianPrior",
+            input_name="mean",
+        )
+
+        self.sigma = atleast_1d(standard_deviation)
+        validate_numeric_input(
+            values=self.sigma,
+            shape=(self.n_targets,),
+            shape_name=self.target_type,
+            error_source="GaussianPrior",
+            input_name="standard_deviation",
+            limits=(0.0, float("inf")),
+            strict_limits=True,
+        )
+
+        self.inv_sigma = 1.0 / self.sigma
+        self.inv_sigma_sqr = self.inv_sigma**2
 
     def probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]

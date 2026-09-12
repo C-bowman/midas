@@ -8,6 +8,7 @@ from inference.gp.mean import MeanFunction, ConstantMean
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields, validate_coordinates
 from midas.state import BasePrior
+from midas.validation import validate_name
 
 
 class GaussianProcessPrior(BasePrior):
@@ -48,23 +49,25 @@ class GaussianProcessPrior(BasePrior):
     def __init__(
         self,
         name: str,
-        covariance: CovarianceFunction = SquaredExponential(),
-        mean: MeanFunction = ConstantMean(),
-        field_request: FieldRequest = None,
-        parameter_vector: ParameterVector = None,
-        coordinates: dict[str, ndarray] = None,
+        covariance: CovarianceFunction | None = None,
+        mean: MeanFunction | None = None,
+        field_request: FieldRequest | None = None,
+        parameter_vector: ParameterVector | None = None,
+        coordinates: dict[str, ndarray] | None = None,
     ):
-        self.cov = covariance
-        self.mean = mean
+        validate_name(name, error_source="GaussianProcessPrior")
         self.name = name
+        
+        self.cov = SquaredExponential() if covariance is None else covariance
+        self.mean = ConstantMean() if mean is None else mean
 
         if coordinates is not None:
             validate_coordinates(coordinates, error_source="GaussianProcessPrior")
 
         if isinstance(field_request, FieldRequest):
             self.target = field_request.name
+            n_targets = field_request.size
             if coordinates is not None:
-                assert all(field_request.size == c.size for c in coordinates.values())
                 spatial_data = array([v for v in coordinates.values()]).T
             else:
                 spatial_data = array(
@@ -72,14 +75,13 @@ class GaussianProcessPrior(BasePrior):
                 ).T
             self.fields = Fields(field_request)
             target_parameters = []
-            self.I = eye(field_request.size)
 
         elif isinstance(parameter_vector, ParameterVector) and isinstance(coordinates, dict):
             self.target = parameter_vector.name
+            n_targets = parameter_vector.size
             spatial_data = array([v for v in coordinates.values()]).T
             self.fields = Fields()
             target_parameters = [parameter_vector]
-            self.I = eye(parameter_vector.size)
 
         else:
             raise ValueError(
@@ -90,6 +92,17 @@ class GaussianProcessPrior(BasePrior):
                 """
             )
 
+        if spatial_data.shape[0] != n_targets:
+            raise ValueError(
+                f"""\n
+                \r[ GaussianProcessPrior error ]
+                \r>> The spatial coordinates must contain one location for each
+                \r>> target value, but received {spatial_data.shape[0]} locations
+                \r>> for {n_targets} target values.
+                """
+            )
+
+        self.I = eye(n_targets)
         self.cov.pass_spatial_data(spatial_data)
         self.mean.pass_spatial_data(spatial_data)
 
@@ -116,7 +129,7 @@ class GaussianProcessPrior(BasePrior):
             v = solve_triangular(L, field_values - mu, lower=True)
             return -0.5 * (v @ v) - log(diagonal(L)).sum()
         except LinAlgError:
-            warn("Cholesky decomposition failure in marginal_likelihood")
+            warn("Cholesky decomposition failure in GaussianProcessPrior.probability")
             return -1e50
 
     def gradients(self, **kwargs: ndarray) -> dict[str, ndarray]:

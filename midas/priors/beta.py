@@ -2,6 +2,7 @@ from numpy import ndarray, atleast_1d, log, zeros
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields
 from midas.state import BasePrior
+from midas.validation import validate_numeric_input, validate_name
 
 
 class BetaPrior(BasePrior):
@@ -40,32 +41,31 @@ class BetaPrior(BasePrior):
         name: str,
         alpha: ndarray,
         beta: ndarray,
-        field_request: FieldRequest = None,
-        parameter_vector: ParameterVector = None,
+        field_request: FieldRequest | None = None,
+        parameter_vector: ParameterVector | None = None,
         limits: tuple[float, float] = (0, 1),
     ):
 
+        validate_name(name, error_source="BetaPrior")
         self.name = name
-        self.alpha = atleast_1d(alpha)
-        self.beta = atleast_1d(beta)
 
-        self.am1 = self.alpha - 1
-        self.bm1 = self.beta - 1
-
-        lwr, upr = limits
         assert hasattr(limits, "__len__") and len(limits) == 2
-        assert lwr < upr
+        assert limits[0] < limits[1]
+        lwr, upr = limits
+
         self.scale = 1 / (upr - lwr)
         self.offset = -lwr * self.scale
 
         if isinstance(field_request, FieldRequest):
             self.target = field_request.name
+            self.target_type = "field_request"
             self.n_targets = field_request.size
             self.fields = Fields(field_request)
             self.parameters = Parameters()
 
         elif isinstance(parameter_vector, ParameterVector):
             self.target = parameter_vector.name
+            self.target_type = "parameter_vector"
             self.n_targets = parameter_vector.size
             self.fields = Fields()
             self.parameters = Parameters(parameter_vector)
@@ -80,10 +80,30 @@ class BetaPrior(BasePrior):
                 """
             )
 
-        assert self.alpha.ndim == self.beta.ndim == 1
-        assert self.alpha.size == self.beta.size == self.n_targets
-        assert (self.alpha > 0).all() and (self.beta > 0).all()
-        assert isinstance(name, str)
+        self.alpha = atleast_1d(alpha)
+        validate_numeric_input(
+            values=self.alpha,
+            shape=(self.n_targets,),
+            shape_name=self.target_type,
+            error_source="BetaPrior",
+            input_name="alpha",
+            limits=(0.0, float("inf")),
+            strict_limits=True,
+        )
+
+        self.beta = atleast_1d(beta)
+        validate_numeric_input(
+            values=self.beta,
+            shape=(self.n_targets,),
+            shape_name=self.target_type,
+            error_source="BetaPrior",
+            input_name="beta",
+            limits=(0.0, float("inf")),
+            strict_limits=True,
+        )
+
+        self.am1 = self.alpha - 1
+        self.bm1 = self.beta - 1
 
     def probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]

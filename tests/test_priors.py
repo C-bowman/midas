@@ -1,5 +1,5 @@
 import pytest
-from numpy import array, linspace, sin, allclose
+from numpy import inf, linspace, nan, sin, allclose, concatenate
 from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
@@ -13,41 +13,160 @@ from midas import posterior
 rng = default_rng(2391)
 
 
-bounded_support_test_setup = [
+prior_test_setup = [
+    (
+        GaussianPrior,
+        {
+            "mean": rng.uniform(low=-1.0, high=1.0, size=16),
+            "standard_deviation": rng.uniform(low=0.5, high=2.0, size=16),
+        },
+        {
+            "numeric_arguments": ["mean", "standard_deviation"],
+            "values_inside_support": rng.uniform(low=-5.0, high=5.0, size=16)
+        }
+    ),
     (
         ExponentialPrior,
-        {"mean": array([1.0])},
-        array([-1.0]),
+        {
+            "mean": rng.uniform(low=0.1, high=10.0, size=16),
+        },
+        {
+            "numeric_arguments": ["mean"],
+            "values_outside_support": linspace(-10.0, 0.0, 16),
+            "values_inside_support": rng.uniform(low=0.1, high=20.0, size=16)
+        },
     ),
     (
         BetaPrior,
-        {"alpha": array([2.0]), "beta": array([2.0]), "limits": (-0.5, 2.5)},
-        array([-0.6]),
+        {
+            "alpha": rng.uniform(low=0.3, high=3.0, size=16),
+            "beta": rng.uniform(low=0.3, high=3.0, size=16),
+            "limits": (-0.5, 2.5),
+        },
+        {
+            "numeric_arguments": ["alpha", "beta"],
+            "values_outside_support": concatenate([linspace(-10.0, -0.6, 8), linspace(2.6, 10.0, 8)]),
+            "values_inside_support": rng.uniform(low=-0.2, high=2.2, size=16)
+        },
     ),
     (
-        BetaPrior,
-        {"alpha": array([2.0]), "beta": array([2.0]), "limits": (-0.5, 2.5)},
-        array([2.6]),
+        SoftLimitPrior,
+        {
+            "upper_limit": rng.uniform(low=0., high=2.0, size=16),
+            "standard_deviation": rng.uniform(low=0.5, high=2.0, size=16),
+            "operator": None,
+        },
+        {
+            "numeric_arguments": ["upper_limit", "standard_deviation"],
+            "values_inside_support": rng.uniform(low=-5.0, high=5.0, size=16)
+        }
+    ),
+    (
+        SoftLimitPrior,
+        {
+            "upper_limit": rng.uniform(low=0., high=2.0, size=12),
+            "standard_deviation": rng.uniform(low=0.5, high=2.0, size=12),
+            "operator": rng.random(size=(12, 16)),
+        },
+        {
+            "numeric_arguments": ["upper_limit", "standard_deviation"],
+            "values_inside_support": rng.uniform(low=-5.0, high=5.0, size=16)
+        }
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    "prior_class, kwargs, values_outside_support",
-    bounded_support_test_setup,
-    ids=["exponential-lower", "beta-lower", "beta-upper"],
+    "prior_class, kwargs, info", prior_test_setup,
 )
 def test_bounded_support_priors_reject_invalid_values(
-    prior_class, kwargs, values_outside_support
+    prior_class, kwargs, info
 ):
-    parameter_vector = ParameterVector(name="x", size=1)
+    parameter_vector = ParameterVector(name="x", size=16)
     prior = prior_class(
         name="bounded_prior",
         parameter_vector=parameter_vector,
         **kwargs,
     )
 
-    assert prior.probability(x=values_outside_support) == -1e50
+    assert prior.probability(x=info["values_inside_support"]) > -1e50
+    if "values_outside_support" in info:
+        assert prior.probability(x=info["values_outside_support"]) == -1e50
+
+
+@pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
+def test_prior_validates_name(prior_class, kwargs, info):   
+    parameter_vector = ParameterVector(name="x", size=16)
+
+    with pytest.raises(TypeError, match="must be a string"):
+        prior_class(
+            name=None,
+            parameter_vector=parameter_vector,
+            **kwargs,
+        )
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        prior_class(
+            name="",
+            parameter_vector=parameter_vector,
+            **kwargs,
+        )
+
+
+@pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
+def test_prior_numeric_dtypes(prior_class, kwargs, info):
+    parameter_vector = ParameterVector(name="x", size=16)
+
+    for argument in info["numeric_arguments"]:
+        testing_kwargs = kwargs.copy()
+        testing_kwargs[argument] = kwargs[argument].astype(str)
+
+        with pytest.raises(TypeError, match="real numeric values"):
+            prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
+
+        testing_kwargs[argument] = kwargs[argument].astype(complex)
+
+        with pytest.raises(TypeError, match="real numeric values"):
+            prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
+
+
+@pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
+def test_prior_numeric_finiteness(prior_class, kwargs, info):
+    parameter_vector = ParameterVector(name="x", size=16)
+
+    for argument in info["numeric_arguments"]:
+        testing_kwargs = kwargs.copy()
+
+        added_inf = kwargs[argument].copy()
+        added_inf[-1] = inf
+        testing_kwargs[argument] = added_inf
+
+        with pytest.raises(ValueError, match="finite values"):
+            prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
+
+        added_nan = kwargs[argument].copy()
+        added_nan[-1] = nan
+        testing_kwargs[argument] = added_nan
+
+        with pytest.raises(ValueError, match="finite values"):
+            prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
+
+
+@pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
+def test_prior_numeric_shapes(prior_class, kwargs, info):
+    parameter_vector = ParameterVector(name="x", size=16)
+
+    for argument in info["numeric_arguments"]:
+        testing_kwargs = kwargs.copy()
+        testing_kwargs[argument] = kwargs[argument].reshape((1, -1))
+
+        with pytest.raises(ValueError, match="array with dimension"):
+            prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
+
+        testing_kwargs[argument] = kwargs[argument][:-2]
+
+        with pytest.raises(ValueError, match="must have shape"):
+            prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
 
 
 def test_gp_prior():
@@ -103,49 +222,19 @@ def test_gp_prior():
     assert abs(frac_err).max() < 1e-4
 
 
-prior_test_setup = [
-    (
-        GaussianPrior,
-        {
-            "mean": rng.uniform(low=-1.0, high=1.0, size=16),
-            "standard_deviation": rng.uniform(low=0.5, high=2.0, size=16),
-        },
-    ),
-    (
-        ExponentialPrior,
-        {
-            "mean": rng.uniform(low=0.1, high=10.0, size=16),
-        },
-    ),
-    (
-        BetaPrior,
-        {
-            "alpha": rng.uniform(low=0.3, high=3.0, size=16),
-            "beta": rng.uniform(low=0.3, high=3.0, size=16),
-            "limits": (-0.5, 2.5),
-        },
-    ),
-    (
-        SoftLimitPrior,
-        {
-            "upper_limit": 1.2,
-            "standard_deviation": 0.75,
-            "operator": None,
-        },
-    ),
-    (
-        SoftLimitPrior,
-        {
-            "upper_limit": 0.2,
-            "standard_deviation": 0.3,
-            "operator": rng.random(size=(5, 16)),
-        },
-    ),
-]
+def test_gp_prior_rejects_coordinate_size_mismatch():
+    parameter_vector = ParameterVector(name="profile", size=3)
+
+    with pytest.raises(ValueError, match="one location for each"):
+        GaussianProcessPrior(
+            name="profile_gp",
+            parameter_vector=parameter_vector,
+            coordinates={"radius": linspace(0.0, 1.0, 2)},
+        )
 
 
-@pytest.mark.parametrize("prior_class, kwargs", prior_test_setup)
-def test_unparameterized_priors(prior_class, kwargs):
+@pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
+def test_unparameterized_priors(prior_class, kwargs, info):
     # build a linear field
     R = linspace(1, 10, 10)
     linear_field = PiecewiseLinearField(
