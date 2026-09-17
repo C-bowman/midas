@@ -10,7 +10,7 @@ packages = [
 
 [project]
 name = "midas-fusion"
-version = "0.3.2"
+version = "0.3.3"
 authors = [
   { name="Chris Bowman", email="chris.bowman.physics@gmail.com" },
 ]
