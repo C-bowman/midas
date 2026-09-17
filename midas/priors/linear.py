@@ -1,4 +1,5 @@
 from numpy import atleast_1d, full, ndarray
+from scipy.sparse import sparray
 
 from midas.parameters import FieldRequest, Fields, Parameters, ParameterVector
 from midas.state import BasePrior
@@ -23,8 +24,9 @@ class LinearGaussianPrior(BasePrior):
 		The name used to identify the prior.
 
 	:param operator:
-		A finite, real, two-dimensional array with shape ``(m, n)``, where
-		``n`` is the number of target values.
+		A finite, real, two-dimensional ``numpy.ndarray`` or ``scipy.sparse``
+		array with shape ``(m, n)``, where ``n`` is the number of
+		target values. Sparse operators are stored without densifying them.
 
 	:param mean:
 		A finite, real ``float`` applied to every operator output, or a
@@ -48,7 +50,7 @@ class LinearGaussianPrior(BasePrior):
 	def __init__(
 		self,
 		name: str,
-		operator: ndarray,
+		operator: ndarray | sparray,
 		mean: ndarray | float,
 		standard_deviation: ndarray | float,
 		field_request: FieldRequest | None = None,
@@ -77,8 +79,11 @@ class LinearGaussianPrior(BasePrior):
 				"'parameter_vector'."
 			)
 
-		if not isinstance(operator, ndarray):
-			raise TypeError("LinearGaussianPrior 'operator' must be a numpy array.")
+		if not isinstance(operator, (ndarray, sparray)):
+			raise TypeError(
+				"LinearGaussianPrior 'operator' must be a numpy array or a "
+				"scipy sparse array."
+			)
 		if operator.ndim != 2:
 			raise ValueError("LinearGaussianPrior 'operator' must be two-dimensional.")
 		if operator.shape[1] != self.n_targets:
@@ -88,7 +93,7 @@ class LinearGaussianPrior(BasePrior):
 			)
 		
 		validate_numeric_input(
-			values=operator,
+			values=operator.tocoo().data if isinstance(operator, sparray) else operator,
 			error_source="LinearGaussianPrior",
 			input_name="operator",
 		)

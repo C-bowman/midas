@@ -1,11 +1,12 @@
 import pytest
-from numpy import inf, linspace, nan, sin, allclose, concatenate
+from numpy import array, eye, inf, linspace, nan, sin, allclose, concatenate
+from scipy import sparse
 from scipy.optimize import approx_fprime
 from numpy.random import default_rng
 
 from midas import ParameterVector
 from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
-from midas.priors import BetaPrior, SoftLimitPrior
+from midas.priors import BetaPrior, SoftLimitPrior, SoftBoundsPrior
 from midas.priors import LinearGaussianPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
 from midas.state import PlasmaState
@@ -84,6 +85,32 @@ prior_test_setup = [
         {
             "numeric_arguments": ["mean", "standard_deviation"],
             "values_inside_support": rng.uniform(low=-5.0, high=5.0, size=16),
+        },
+    ),
+    (
+        SoftBoundsPrior,
+        {
+            "lower_limit": linspace(-2.0, -1.0, 16),
+            "upper_limit": linspace(1.0, 2.0, 16),
+            "standard_deviation": linspace(0.5, 2.0, 16),
+            "operator": None,
+        },
+        {
+            "numeric_arguments": ["lower_limit", "upper_limit", "standard_deviation"],
+            "values_inside_support": linspace(-5.0, 5.0, 16),
+        },
+    ),
+    (
+        SoftBoundsPrior,
+        {
+            "lower_limit": linspace(-2.0, -1.0, 12),
+            "upper_limit": linspace(1.0, 2.0, 12),
+            "standard_deviation": linspace(0.5, 2.0, 12),
+            "operator": eye(12, 16) - eye(12, 16, k=1),
+        },
+        {
+            "numeric_arguments": ["lower_limit", "upper_limit", "standard_deviation"],
+            "values_inside_support": array([-3.0, 3.0] * 8),
         },
     ),
 ]
@@ -197,6 +224,60 @@ def test_prior_accepts_scalar_numeric_arguments(prior_class, kwargs, info):
     )
 
     assert prior.probability(x=info["values_inside_support"]) > -1e50
+
+
+@pytest.mark.parametrize(
+    "prior_class, kwargs, info",
+    [setup for setup in prior_test_setup if setup[1].get("operator") is not None]
+    )
+def test_prior_operators(prior_class, kwargs, info):
+    parameter_vector = ParameterVector(name="x", size=kwargs["operator"].shape[1])
+    testing_kwargs = kwargs.copy()
+    testing_kwargs["operator"] = kwargs["operator"][:, :-1]
+    expected_error = AssertionError if prior_class is SoftLimitPrior else ValueError
+
+    with pytest.raises(expected_error):
+        prior_class(name="prior", parameter_vector=parameter_vector, **testing_kwargs)
+
+    dense_prior = prior_class(name="prior", parameter_vector=parameter_vector, **kwargs)
+    testing_kwargs["operator"] = sparse.csr_array(kwargs["operator"])
+    sparse_prior = prior_class(
+        name="prior", parameter_vector=parameter_vector, **testing_kwargs
+    )
+    values = info["values_inside_support"]
+
+    assert sparse_prior.probability(x=values) == pytest.approx(
+        dense_prior.probability(x=values)
+    )
+    assert allclose(
+        sparse_prior.gradients(x=values)["x"], dense_prior.gradients(x=values)["x"]
+    )
+
+
+@pytest.mark.parametrize("target_type", ["parameter_vector", "field_request"])
+def test_soft_bounds_prior_penalties(target_type):
+    target = (
+        ParameterVector(name="x", size=5)
+        if target_type == "parameter_vector"
+        else FieldRequest(name="x", coordinates={"radius": linspace(0.0, 1.0, 5)})
+    )
+    prior = SoftBoundsPrior(
+        name="bounds",
+        lower_limit=-1.0,
+        upper_limit=1.0,
+        standard_deviation=2.0,
+        **{target_type: target},
+    )
+    values = array([-2.0, -1.0, 0.0, 1.0, 3.0])
+    assert prior.probability(x=values) == pytest.approx(-0.625)
+    assert allclose(prior.gradients(x=values)["x"], [0.25, 0.0, 0.0, 0.0, -0.5])
+    assert allclose(
+        prior.gradients(x=values)["x"],
+        approx_fprime(values, lambda values: prior.probability(x=values)),
+    )
+    interior = linspace(-1.0, 1.0, 5)
+    assert prior.probability(x=interior) == 0.0
+    assert allclose(prior.gradients(x=interior)["x"], 0.0)
 
 
 def test_gp_prior():
