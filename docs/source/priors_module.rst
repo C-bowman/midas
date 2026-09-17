@@ -25,4 +25,7 @@ Built-in prior distributions
 .. autoclass:: midas.priors.SoftLimitPrior
 
 
+.. autoclass:: midas.priors.SoftBoundsPrior
+
+
 .. autoclass:: midas.priors.LinearGaussianPrior
