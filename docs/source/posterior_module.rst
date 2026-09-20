@@ -25,3 +25,10 @@ Evaluating the posterior
 
 
 .. autofunction:: midas.posterior.sample_field_values
+
+
+Normalising the cost function for optimisation
+----------------------------------------------
+
+.. autoclass:: midas.posterior.NormalisedCost
+	:members: denormalise, normalise, cost, cost_gradient
