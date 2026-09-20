@@ -1,4 +1,4 @@
-from numpy import array, ndarray, zeros
+from numpy import array, inf, isfinite, ndarray, zeros, zeros_like
 from collections import defaultdict
 
 from midas import FieldRequest
@@ -156,3 +156,91 @@ def sample_field_values(parameter_samples: ndarray, field_request: FieldRequest)
         field_values[i, :] = field_model.get_values(parameters=param_dict, field=field_request)
 
     return field_values
+
+
+class NormalisedCost:
+    """
+    Wrap the posterior cost and gradient functions so they operate on parameter values
+    normalised to the interval [0, 1].
+
+    :param bounds: \
+        The lower and upper bounds of each model parameter as a 2D array with shape
+        ``(n_parameters, 2)``.
+    """
+
+    def __init__(self, bounds: ndarray):
+
+        assert isinstance(bounds, ndarray)
+        assert bounds.ndim == 2
+        assert bounds.shape[1] == 2
+
+        self.scale = bounds[:, 1] - bounds[:, 0]
+        self.shift = bounds[:, 0]
+        self.normalised_bounds = zeros_like(bounds)
+        self.normalised_bounds[:, 1] = 1.0
+
+        assert (self.scale > 0).all()
+        assert isfinite(self.scale).all()
+        assert isfinite(self.shift).all()
+        
+        self.lowest_cost = inf
+        self.best_theta = None
+        self._cost = cost
+        self._cost_gradient = cost_gradient
+
+    def denormalise(self, normalised_point: ndarray) -> ndarray:
+        """
+        Convert normalised parameter values to their original scale.
+
+        :param normalised_point: \
+            The normalised parameter values as a 1D array.
+
+        :return: \
+            The parameter values on their original scale as a 1D array.
+        """
+        return normalised_point * self.scale + self.shift
+
+    def normalise(self, theta: ndarray) -> ndarray:
+        """
+        Convert parameter values to the interval [0, 1].
+
+        :param theta: \
+            The parameter values on their original scale as a 1D array.
+
+        :return: \
+            The normalised parameter values as a 1D array.
+        """
+        return (theta - self.shift) / self.scale
+
+    def cost(self, normalised_point: ndarray) -> float:
+        """
+        Calculate the posterior cost for a set of normalised parameter values.
+
+        The lowest cost encountered and its corresponding parameter values on the
+        original scale are stored in ``lowest_cost`` and ``best_theta`` respectively.
+
+        :param normalised_point: \
+            The normalised parameter values as a 1D array.
+
+        :return: \
+            The negative posterior log-probability.
+        """
+        theta = normalised_point * self.scale + self.shift
+        c = self._cost(theta)
+        if c < self.lowest_cost:
+            self.lowest_cost = c
+            self.best_theta = theta.copy()
+        return c
+
+    def cost_gradient(self, normalised_point: ndarray) -> ndarray:
+        """
+        Calculate the cost gradient with respect to normalised parameter values.
+
+        :param normalised_point: \
+            The normalised parameter values as a 1D array.
+
+        :return: \
+            The cost gradient with respect to the normalised parameter values as a
+            1D array.
+        """
+        return self._cost_gradient(normalised_point * self.scale + self.shift) * self.scale
