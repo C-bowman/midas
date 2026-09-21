@@ -104,16 +104,17 @@ class DiagnosticLikelihood:
         grad = zeros(PlasmaState.n_params)
         for param_name, likelihood_grad in likelihood_gradients.items():
             slc = PlasmaState.slices[param_name]
-            grad[slc] = likelihood_grad
+            grad[slc] += likelihood_grad
 
         for param_name in param_values.keys():
             slc = PlasmaState.slices[param_name]
-            grad[slc] = dL_dp @ model_jacobians[param_name]
+            grad[slc] += dL_dp @ model_jacobians[param_name]
 
-        for field_param, field_jacobian in field_jacobians.items():
-            field_name = PlasmaState.field_parameter_map[field_param]
-            slc = PlasmaState.slices[field_param]
-            grad[slc] = (dL_dp @ model_jacobians[field_name]) @ field_jacobian
+        for field_name, jacobians in field_jacobians.items():
+            field_gradient = dL_dp @ model_jacobians[field_name]
+            for param_name, jacobian in jacobians.items():
+                slc = PlasmaState.slices[param_name]
+                grad[slc] += field_gradient @ jacobian
 
         return grad
 
@@ -211,6 +212,10 @@ class BasePrior(ABC):
             parameter and field values. These gradients are returned as a dictionary
             mapping the parameter and field names to their respective gradients as
             1D arrays.
+
+            These must be partial derivatives with all other inputs held fixed.
+            Contributions through fields that depend on a requested parameter are
+            propagated separately and added to its direct gradient.
         """
 
     def log_probability(self) -> float:
@@ -232,12 +237,12 @@ class BasePrior(ABC):
         grad = zeros(PlasmaState.n_params)
         for p in param_values.keys():
             slc = PlasmaState.slices[p]
-            grad[slc] = gradients[p]
+            grad[slc] += gradients[p]
 
-        for field_param in field_jacobians.keys():
-            field_name = PlasmaState.field_parameter_map[field_param]
-            slc = PlasmaState.slices[field_param]
-            grad[slc] = gradients[field_name] @ field_jacobians[field_param]
+        for field_name, jacobians in field_jacobians.items():
+            for param_name, jacobian in jacobians.items():
+                slc = PlasmaState.slices[param_name]
+                grad[slc] += gradients[field_name] @ jacobian
 
         return grad
 
@@ -260,7 +265,6 @@ class PlasmaState:
     parameter_sizes: dict[str, int]
     slices: dict[str, slice] = {}
     field_models: dict[str, FieldModel] = {}
-    field_parameter_map: dict[str, str]
     components: list[DiagnosticLikelihood | BasePrior]
 
     @classmethod
@@ -337,14 +341,6 @@ class PlasmaState:
                 \r>> but the modelled fields are:
                 \r>> {modelled_fields}
                 """
-            )
-
-        # Build a map between the names of parameter vectors of field models,
-        # and the names of their parent fields:
-        cls.field_parameter_map = {}
-        for field_name, field_model in cls.field_models.items():
-            cls.field_parameter_map.update(
-                {param.name: field_name for param in field_model.parameters}
             )
 
         # Gather all the ParameterVector object in the analysis
@@ -556,7 +552,13 @@ class PlasmaState:
     @classmethod
     def get_values_and_jacobians(
         cls, parameters: Parameters, fields: Fields
-    ):
+    ) -> tuple[dict[str, ndarray], dict[str, ndarray], dict[str, dict[str, ndarray]]]:
+        """
+        Return parameter values, field values, and field Jacobians.
+
+        The Jacobians are nested dictionaries keyed first by field name, then by
+        parameter name, so fields sharing parameters retain separate Jacobians.
+        """
         param_values = cls.get_parameter_values(parameters)
         field_values = {}
         field_param_jacobians = {}
@@ -566,7 +568,7 @@ class PlasmaState:
             values, jacobians = field_model.get_values_and_jacobian(field_params, f)
 
             field_values[f.name] = values
-            field_param_jacobians.update(jacobians)
+            field_param_jacobians[f.name] = jacobians
 
         return param_values, field_values, field_param_jacobians
 
@@ -683,7 +685,6 @@ class PlasmaState:
                 """
             )
 
-        parameter_owners = {}
         for index, model in enumerate(field_models):
             if not isinstance(model.name, str) or len(model.name) == 0:
                 raise ValueError(
@@ -700,19 +701,6 @@ class PlasmaState:
                 error_source="PlasmaState.build_posterior",
                 description=f"field model at index {index}",
             )
-
-            for parameter in model.parameters:
-                if parameter.name in parameter_owners:
-                    raise ValueError(
-                        f"""\n
-                        \r[ PlasmaState.build_posterior error ]
-                        \r>> The parameter name '{parameter.name}' is used by the field
-                        \r>> models '{parameter_owners[parameter.name]}' and
-                        \r>> '{model.name}', but each field-model parameter name must
-                        \r>> belong to only one field model.
-                        """
-                    )
-                parameter_owners[parameter.name] = model.name
 
         # check that each model is for a unique field
         unique_fields = len({f.name for f in field_models}) == len(field_models)

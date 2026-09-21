@@ -1,13 +1,18 @@
 from typing import cast
 
 import pytest
-from numpy import array, linspace
+from numpy import array, column_stack, exp, eye, linspace, ones
+from numpy.random import default_rng
+from numpy.testing import assert_allclose
 from utilities import Polynomial, StraightLine
 from midas.likelihoods import GaussianLikelihood, DiagnosticLikelihood
-from midas.models.fields import PiecewiseLinearField
+from midas.likelihoods.uncertainties import ConstantUncertainty
+from midas.models import DiagnosticModel
+from midas.models.fields import FieldModel, PiecewiseLinearField
+from midas.posterior import gradient, log_probability
 from midas.priors import GaussianPrior
-from midas.state import LikelihoodFunction
-from midas import FieldRequest, Parameters, PlasmaState
+from midas.state import BasePrior, LikelihoodFunction
+from midas import FieldRequest, Fields, Parameters, PlasmaState
 
 
 def build_diagnostic(name):
@@ -100,17 +105,36 @@ def test_build_posterior_rejects_invalid_field_model_parameters():
         )
 
 
-def test_build_posterior_rejects_field_parameter_owned_by_multiple_models():
-    emission_model = build_field_model("emission")
-    temperature_model = build_field_model("temperature")
-    emission_model.parameters = Parameters(("shared_parameter", 3))
-    temperature_model.parameters = Parameters(("shared_parameter", 3))
+@pytest.mark.parametrize("parameter_size", [2, 3])
+def test_build_posterior_with_shared_field_parameters(parameter_size):
+    field_models = [build_field_model("emission"), build_field_model("temperature")]
+    priors = []
+    for model, size in zip(field_models, [3, parameter_size]):
+        model.param_name = "shared_parameter"
+        model.parameters = Parameters(("shared_parameter", size))
+        priors.append(GaussianPrior(
+            name=f"{model.name}_prior",
+            mean=array([0.0, 0.0, 0.0]),
+            standard_deviation=array([1.0, 1.0, 1.0]),
+            field_request=FieldRequest(model.name, {"radius": linspace(0, 1, 3)}),
+        ))
 
-    with pytest.raises(ValueError, match="belong to only one field model"):
+    if parameter_size != 3:
+        with pytest.raises(ValueError, match="differ in their size"):
+            PlasmaState.build_posterior([], priors, field_models)
+    else:
+        PlasmaState.build_posterior([], priors, field_models)
+        assert PlasmaState.slices == {"shared_parameter": slice(0, 3)}
+        assert PlasmaState.parameter_sizes == {"shared_parameter": 3}
+        assert PlasmaState.n_params == 3
+
+
+def test_build_posterior_rejects_duplicate_field_names():
+    with pytest.raises(ValueError, match="unique field name"):
         PlasmaState.build_posterior(
             diagnostics=[],
             priors=[],
-            field_models=[emission_model, temperature_model],
+            field_models=[build_field_model(), build_field_model()],
         )
 
 
@@ -160,9 +184,6 @@ def test_build_posterior_generates_consistent_parameter_mappings():
         "y_intercept": 1,
     }
     assert PlasmaState.n_params == 5
-    assert PlasmaState.field_parameter_map == {
-        "emission_linear_basis": "emission",
-    }
 
 
 def test_build_bounds():
@@ -193,3 +214,165 @@ def test_build_bounds():
         "poly_coefficients": array([(-1, 1), (-2, 2), (-3, 3)]),
     }
     bounds = PlasmaState.build_bounds(param_bounds)
+
+
+class CoupledField(FieldModel):
+    def __init__(self, name, scalar_matrix):
+        self.name = name
+        self.n_params = 4
+        self.offset_name = f"{name}_offset"
+        self.scalar_matrix = scalar_matrix
+        self.parameters = Parameters(("shared", 2), ("scale", 1), (self.offset_name, 1))
+
+    def get_values(self, parameters, field):
+        radius = field.coordinates["radius"]
+        basis = column_stack((ones(radius.size), radius))
+        return exp(
+            basis @ parameters["shared"]
+            + radius**2 * parameters["scale"]
+            + parameters[self.offset_name]
+        )
+
+    def get_values_and_jacobian(self, parameters, field):
+        radius = field.coordinates["radius"]
+        values = self.get_values(parameters, field)
+        basis = column_stack((ones(radius.size), radius))
+        scale_jacobian = values * radius**2
+        offset_jacobian = values.copy()
+        if self.scalar_matrix:
+            scale_jacobian = scale_jacobian[:, None]
+            offset_jacobian = offset_jacobian[:, None]
+        return values, {
+            "shared": values[:, None] * basis,
+            "scale": scale_jacobian,
+            self.offset_name: offset_jacobian,
+        }
+
+
+class CoupledDiagnostic(DiagnosticModel):
+    def __init__(self, fields):
+        self.fields = Fields(*fields)
+        self.parameters = Parameters(("shared", 2), ("scale", 1), ("bias", 1))
+        self.jacobians = {
+            "shared": array([[0.3, -0.2], [0.1, 0.4]]),
+            "scale": array([0.5, -0.3]),
+            "bias": ones(2),
+        }
+        for field in fields:
+            self.jacobians[field.name] = linspace(-0.2, 0.5, 2 * field.size).reshape(
+                2, field.size
+            )
+
+    def predictions(self, **values):
+        result = self.jacobians["shared"] @ values["shared"]
+        result += self.jacobians["scale"] * values["scale"] + values["bias"]
+        for field in self.fields:
+            result += self.jacobians[field.name] @ values[field.name]
+        return result
+
+    def predictions_and_jacobians(self, **values):
+        return self.predictions(**values), self.jacobians
+
+
+class CoupledPrior(BasePrior):
+    def __init__(self, fields):
+        self.name = "coupled_prior"
+        self.fields = Fields(*fields)
+        self.parameters = Parameters(("shared", 2), ("scale", 1))
+
+    def probability(self, **values):
+        return -0.5 * sum((value**2).sum() for value in values.values())
+
+    def gradients(self, **values):
+        return {name: -value for name, value in values.items()}
+
+
+def build_coupled_posterior(scalar_matrix=False, reverse=False):
+    requests = [
+        FieldRequest("emission", {"radius": linspace(0, 0.6, 3)}),
+        FieldRequest("temperature", {"radius": linspace(0.1, 0.7, 4)}),
+    ]
+    fields = [CoupledField(request.name, scalar_matrix) for request in requests]
+    if reverse:
+        fields.reverse()
+        requests.reverse()
+    diagnostics = [
+        DiagnosticLikelihood(
+            diagnostic_model=CoupledDiagnostic(requested),
+            likelihood=GaussianLikelihood(
+                y_data=array([0.7, -0.2]),
+                sigma=ConstantUncertainty(n_data=2, parameter_name="scale"),
+            ),
+            name=f"diagnostic_{index}",
+        )
+        for index, requested in enumerate([
+            requests,
+            [FieldRequest("emission", {"radius": linspace(-0.1, 0.4, 5)})],
+            [FieldRequest("temperature", {"radius": linspace(0.2, 0.8, 2)})],
+            [],
+        ])
+    ]
+    PlasmaState.build_posterior(
+        diagnostics=diagnostics,
+        priors=[CoupledPrior(requests)],
+        field_models=fields,
+    )
+
+
+def finite_difference(function, theta):
+    step = 1e-5
+    directions = eye(theta.size) * step
+    return array([
+        (function(theta + direction) - function(theta - direction)) / (2 * step)
+        for direction in directions
+    ])
+
+
+@pytest.mark.parametrize("scalar_matrix", [False, True])
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("seed", [1, 7, 23])
+def test_shared_parameter_gradients(scalar_matrix, reverse, seed):
+    build_coupled_posterior(scalar_matrix, reverse)
+    assert PlasmaState.n_params == 6
+    assert PlasmaState.parameter_sizes == {
+        "bias": 1,
+        "emission_offset": 1,
+        "scale": 1,
+        "shared": 2,
+        "temperature_offset": 1,
+    }
+    rng = default_rng(seed)
+    theta = rng.uniform(-0.3, 0.3, PlasmaState.n_params)
+    theta[PlasmaState.slices["scale"]] = 1.2
+    for component in PlasmaState.components:
+        def probability_at(point):
+            PlasmaState.theta = point.copy()
+            return component.log_probability()
+
+        numerical = finite_difference(probability_at, theta)
+        PlasmaState.theta = theta.copy()
+        assert_allclose(
+            component.log_probability_gradient(), numerical, rtol=1e-7, atol=1e-8
+        )
+    numerical = finite_difference(log_probability, theta)
+    assert_allclose(gradient(theta), numerical, rtol=1e-7, atol=1e-8)
+
+
+def test_shared_parameter_jacobians_are_grouped_by_field():
+    build_coupled_posterior()
+    PlasmaState.theta = ones(PlasmaState.n_params) * 0.2
+    diagnostic = PlasmaState.components[0]
+    parameters, values, jacobians = PlasmaState.get_values_and_jacobians(
+        diagnostic.model_parameters, diagnostic.fields
+    )
+    assert set(parameters) == {"shared", "scale", "bias"}
+    assert set(values) == set(jacobians) == {"emission", "temperature"}
+    for request in diagnostic.fields:
+        model = PlasmaState.field_models[request.name]
+        expected_values, expected_jacobians = model.get_values_and_jacobian(
+            PlasmaState.get_parameter_values(model.parameters), request
+        )
+        assert_allclose(values[request.name], expected_values)
+        assert set(jacobians[request.name]) == set(expected_jacobians)
+        for param_name, expected in expected_jacobians.items():
+            assert_allclose(jacobians[request.name][param_name], expected)

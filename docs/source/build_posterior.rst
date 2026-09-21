@@ -42,3 +42,30 @@ module, and use its functions to evaluate the posterior or its gradient:
 
     log_prob = posterior.log_probability(parameter_values)
     log_prob_gradient = posterior.gradient(parameter_values)
+
+
+Sharing parameters
+------------------
+Field models, diagnostic models, likelihoods and priors can share parameter vectors.
+Declare a ``ParameterVector`` with the same ``name`` and ``size`` in each component's
+``Parameters`` collection. MIDAS allocates one slice of the posterior parameter vector
+for that name and supplies the same values to every component requesting it. The
+``ParameterVector`` objects need not be the same Python object; names identify shared
+parameters, and inconsistent sizes are rejected.
+
+For example, two custom field models and a diagnostic model can each request
+``Parameters(("calibration", 1))``, alongside their other parameters. The diagnostic
+can use ``calibration`` directly while also requesting fields that depend on it.
+MIDAS adds the direct derivative and the chain-rule contributions through every
+requested field. Priors and parameterised likelihoods follow the same additive rule.
+
+Diagnostic Jacobians and prior gradients must be partial derivatives with respect to
+their explicit inputs, holding all other inputs fixed. Do not include a field's
+dependence on a shared parameter in the direct parameter derivative: MIDAS accounts
+for that dependence separately. Field names must remain unique, and a component's
+field names must not collide with its directly requested parameter names.
+
+For code using ``PlasmaState.get_values_and_jacobians`` directly, the third return
+value is now a nested dictionary indexed by field name and then parameter name.
+The former ``PlasmaState.field_parameter_map`` has been removed because parameters
+no longer have a unique owning field.
