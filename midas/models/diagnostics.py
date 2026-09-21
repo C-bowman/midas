@@ -56,6 +56,10 @@ class DiagnosticModel(ABC):
             field name to its corresponding Jacobian. A 1D array may be returned for
             a scalar parameter or field input. For vector inputs, the Jacobian must
             have shape ``(n_predictions, n_input_values)``.
+
+            These must be partial derivatives with all other inputs held fixed.
+            Contributions through fields that depend on a requested parameter are
+            propagated separately and added to its direct contribution.
         """
 
 
