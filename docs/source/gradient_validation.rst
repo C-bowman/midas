@@ -69,3 +69,43 @@ Gradient report
       Number of validation points sampled for each gradient.
 
    .. automethod:: GradientReport.print_report
+
+For example, a successful report is formatted as:
+
+.. role:: gradient-report-pass
+   :class: gradient-report-pass
+
+.. role:: gradient-report-component
+   :class: gradient-report-component
+
+.. parsed-literal::
+
+   Gradient validation: :gradient-report-pass:`PASS`
+
+   :gradient-report-component:`[brem_diagnostic]`
+       Parameter           | Status | Max direction error | Max magnitude error | Pass rate
+       --------------------+--------+---------------------+---------------------+----------
+       ln_ne_bspline_basis | :gradient-report-pass:`PASS`   |            8.88e-10 |            8.49e-10 |    100.0%
+       ln_te_bspline_basis | :gradient-report-pass:`PASS`   |            1.12e-08 |            8.73e-10 |    100.0%
+       z_eff_cubic_spline  | :gradient-report-pass:`PASS`   |            1.13e-08 |            7.07e-10 |    100.0%
+
+   :gradient-report-component:`[te_diagnostic]`
+       Parameter           | Status | Max direction error | Max magnitude error | Pass rate
+       --------------------+--------+---------------------+---------------------+----------
+       ln_ne_bspline_basis | :gradient-report-pass:`PASS`   |                   0 |                   0 |    100.0%
+       ln_te_bspline_basis | :gradient-report-pass:`PASS`   |            2.24e-10 |            8.38e-11 |    100.0%
+       z_eff_cubic_spline  | :gradient-report-pass:`PASS`   |                   0 |                   0 |    100.0%
+
+   :gradient-report-component:`[ne_diagnostic]`
+       Parameter           | Status | Max direction error | Max magnitude error | Pass rate
+       --------------------+--------+---------------------+---------------------+----------
+       ln_ne_bspline_basis | :gradient-report-pass:`PASS`   |            4.13e-10 |            1.85e-10 |    100.0%
+       ln_te_bspline_basis | :gradient-report-pass:`PASS`   |                   0 |                   0 |    100.0%
+       z_eff_cubic_spline  | :gradient-report-pass:`PASS`   |                   0 |                   0 |    100.0%
+
+   :gradient-report-component:`[te_monotonicity_prior]`
+       Parameter           | Status | Max direction error | Max magnitude error | Pass rate
+       --------------------+--------+---------------------+---------------------+----------
+       ln_ne_bspline_basis | :gradient-report-pass:`PASS`   |                   0 |                   0 |    100.0%
+       ln_te_bspline_basis | :gradient-report-pass:`PASS`   |            1.33e-10 |            1.15e-10 |    100.0%
+       z_eff_cubic_spline  | :gradient-report-pass:`PASS`   |                   0 |                   0 |    100.0%
