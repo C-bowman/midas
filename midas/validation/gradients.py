@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from numpy import isfinite, ndarray, zeros, finfo, cbrt
+from numpy import isfinite, ndarray, zeros
 from numpy.random import default_rng
 from numpy.linalg import norm as l2_norm
 from midas.state import PlasmaState
@@ -204,7 +204,7 @@ def validate_gradient(
     n_samples: int = 5,
     dir_tol: float = 1e-4,
     mag_tol: float = 1e-4,
-    initial_step: float = cbrt(finfo(float).eps),
+    initial_step: float = 1e-6,
 ) -> GradientReport:
     """
     Validate every posterior component's analytic gradient calculation.

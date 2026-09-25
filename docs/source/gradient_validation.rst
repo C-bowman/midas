@@ -42,8 +42,7 @@ Validation API
 Gradient report
 ~~~~~~~~~~~~~~~
 
-``validate_gradient`` returns a :class:`GradientReport`. Users do not normally
-construct this class directly.
+``validate_gradient`` returns a :class:`GradientReport` instance:
 
 .. currentmodule:: midas.validation
 
