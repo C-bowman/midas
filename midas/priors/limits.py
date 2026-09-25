@@ -1,6 +1,6 @@
 from numpy import eye, full, ndarray, maximum, atleast_1d
 from scipy.sparse import sparray
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 from midas.parameters import Parameters, Fields, FieldRequest, ParameterVector
 from midas.validation import validate_numeric_input, validate_name
 

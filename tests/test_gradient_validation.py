@@ -18,7 +18,7 @@ from midas.validation.gradients import (
 from midas.likelihoods import GaussianLikelihood
 from midas.models.fields import PiecewiseLinearField
 from midas.priors import GaussianPrior
-from midas.state import DiagnosticLikelihood, Posterior
+from midas.posterior import DiagnosticLikelihood, Posterior
 from midas import build_posterior
 
 

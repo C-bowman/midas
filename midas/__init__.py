@@ -1,5 +1,5 @@
 from midas.parameters import ParameterVector, FieldRequest, Parameters, Fields
-from midas.state import Posterior, build_posterior
+from midas.posterior import Posterior, build_posterior
 
 __all__ = [
     "ParameterVector",

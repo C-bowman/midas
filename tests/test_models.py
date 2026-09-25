@@ -1,7 +1,7 @@
 from numpy import array
 from scipy.optimize import minimize, approx_fprime
 from midas.likelihoods import GaussianLikelihood
-from midas.state import DiagnosticLikelihood
+from midas.posterior import DiagnosticLikelihood
 from midas import build_posterior
 
 from utilities import StraightLine

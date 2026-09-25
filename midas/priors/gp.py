@@ -7,7 +7,7 @@ from inference.gp.mean import MeanFunction, ConstantMean
 
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields, validate_coordinates
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 from midas.validation import validate_name
 
 

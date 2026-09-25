@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from numpy import isfinite, ndarray, zeros
 from numpy.random import default_rng
 from numpy.linalg import norm as l2_norm
-from midas.state import Posterior
-from midas.posterior import NormalisedCost
+from midas.posterior import Posterior
+from midas.normalisation import NormalisedCost
 
 
 def finite_difference_gradient(

@@ -1,17 +1,14 @@
 .. _posterior-ref:
 
-Evaluating a posterior
-======================
+Constructing and evaluating a posterior
+=======================================
 
-Posterior evaluations are methods of the instance returned by
-:func:`midas.build_posterior`.
+The :mod:`midas.posterior` module defines posterior components, construction, vector
+parameterisation, and evaluation. The ``Posterior`` class owns one independent
+posterior distribution and its methods can be passed directly to optimisers and
+samplers.
+
+.. autofunction:: midas.build_posterior
 
 .. autoclass:: midas.Posterior
-	:no-index:
-	:members: log_probability, gradient, cost, cost_gradient, component_log_probabilities, get_model_predictions, sample_model_predictions, sample_field_values
-
-Normalising the cost function for optimisation
-----------------------------------------------
-
-.. autoclass:: midas.posterior.NormalisedCost
-	:members: denormalise, normalise, cost, cost_gradient
+   :members: log_probability, gradient, split_parameters, merge_parameters, split_samples, build_bounds, cost, cost_gradient, component_log_probabilities, get_model_predictions, sample_model_predictions, sample_field_values

@@ -1,4 +1,4 @@
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 from midas.priors.gaussian import GaussianPrior
 from midas.priors.gp import GaussianProcessPrior
 from midas.priors.exponential import ExponentialPrior

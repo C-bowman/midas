@@ -1,3 +1,3 @@
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 
 
