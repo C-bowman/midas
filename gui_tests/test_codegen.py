@@ -143,10 +143,10 @@ class TestGenerateScriptCoordinates:
         assert '"z": z_vals' in script
 
 
-# ── generate_script: DiagnosticLikelihood ──────────────────────────────
+# ── generate_script: Diagnostic ────────────────────────────────────────
 
 
-class TestGenerateScriptDiagnosticLikelihood:
+class TestGenerateScriptDiagnostic:
     def test_connects_model_and_likelihood(self):
         g = GraphModel()
         dm = g.add_node("LinearDiagnosticModel")
@@ -160,21 +160,21 @@ class TestGenerateScriptDiagnosticLikelihood:
         gl.properties["name"] = "like"
         g.add_edge(arr.id, "data", gl.id, "y_data")
 
-        dl = g.add_node("DiagnosticLikelihood")
+        dl = g.add_node("Diagnostic")
         dl.properties["name"] = "dl"
         g.add_edge(dm.id, "diagnostic_model", dl.id, "diagnostic_model")
         g.add_edge(gl.id, "likelihood", dl.id, "likelihood")
 
         script = generate_script(g)
-        assert "DiagnosticLikelihood(" in script
+        assert "Diagnostic(" in script
         assert "diagnostic_model=diag" in script
         assert "likelihood=like" in script
 
     def test_import_added(self):
         g = GraphModel()
-        g.add_node("DiagnosticLikelihood")
+        g.add_node("Diagnostic")
         script = generate_script(g)
-        assert "DiagnosticLikelihood" in script
+        assert "Diagnostic" in script
         assert "from midas.likelihoods import" in script
 
 
@@ -195,7 +195,7 @@ class TestGenerateScriptOrdering:
         script = generate_script(g)
         assert script.index("axis = np.linspace") < script.index("field = PiecewiseLinearField")
 
-    def test_diagnostic_likelihood_after_its_inputs(self):
+    def test_diagnostic_after_its_inputs(self):
         g = GraphModel()
         arr = g.add_node("Array")
         arr.properties["name"] = "y"
@@ -208,13 +208,13 @@ class TestGenerateScriptOrdering:
         dm = g.add_node("LinearDiagnosticModel")
         dm.properties["name"] = "dm"
 
-        dl = g.add_node("DiagnosticLikelihood")
+        dl = g.add_node("Diagnostic")
         dl.properties["name"] = "dl"
         g.add_edge(dm.id, "diagnostic_model", dl.id, "diagnostic_model")
         g.add_edge(gl.id, "likelihood", dl.id, "likelihood")
 
         script = generate_script(g)
-        dl_pos = script.index("dl = DiagnosticLikelihood")
+        dl_pos = script.index("dl = Diagnostic")
         gl_pos = script.index("gl = GaussianLikelihood")
         dm_pos = script.index("dm = LinearDiagnosticModel")
         assert gl_pos < dl_pos
@@ -266,7 +266,7 @@ class TestGenerateScriptPosterior:
 
     def test_includes_diagnostics(self):
         g = GraphModel()
-        dl = g.add_node("DiagnosticLikelihood")
+        dl = g.add_node("Diagnostic")
         dl.properties["name"] = "diag"
         script = generate_script(g)
         assert "diagnostics=[diag]" in script
@@ -665,9 +665,9 @@ class TestGenerateScriptPosteriorMultiple:
 
     def test_multiple_diagnostics(self):
         g = GraphModel()
-        d1 = g.add_node("DiagnosticLikelihood")
+        d1 = g.add_node("Diagnostic")
         d1.properties["name"] = "d1"
-        d2 = g.add_node("DiagnosticLikelihood")
+        d2 = g.add_node("Diagnostic")
         d2.properties["name"] = "d2"
         script = generate_script(g)
         assert "diagnostics=[d1, d2]" in script

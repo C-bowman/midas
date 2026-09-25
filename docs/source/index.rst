@@ -56,7 +56,7 @@ but is completely independent of the specific choice of parametrisation for thos
    :caption: Contents:
 
    getting_started
-   diagnostic_likelihood
+   diagnostic
    defining_priors
    choosing_field_models
    build_posterior

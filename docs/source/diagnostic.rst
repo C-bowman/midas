@@ -1,8 +1,8 @@
 Adding diagnostics to a MIDAS analysis
 ======================================
 
-To include a diagnostic in a MIDAS analysis, we need to create a :ref:`DiagnosticLikelihood <DiagnosticLikelihood-ref>`
-object. MIDAS abstracts the definition of a diagnostic likelihood into two parts:
+To include a diagnostic in a MIDAS analysis, create a
+:ref:`Diagnostic <Diagnostic-ref>` object. MIDAS defines a diagnostic using two parts:
 
 
 * A :ref:`DiagnosticModel <DiagnosticModel-ref>` object, which implements (or calls)
@@ -141,19 +141,19 @@ creating an instance of :ref:`GaussianLikelihood <GaussianLikelihood-ref>` could
     )
 
 
-Creating a DiagnosticLikelihood
--------------------------------
+Creating a Diagnostic
+---------------------
 
 Combining the previous examples of a straight-line model and a Gaussian likelihood,
-we can create an instance of :ref:`DiagnosticLikelihood <DiagnosticLikelihood-ref>`:
+we can create an instance of :ref:`Diagnostic <Diagnostic-ref>`:
 
 .. code-block:: python
 
-    from midas.likelihoods import DiagnosticLikelihood
+    from midas.likelihoods import Diagnostic
 
     straight_line_model = StraightLine(x_axis=measurement_positions)
 
-    straight_line_likelihood = DiagnosticLikelihood(
+    straight_line_diagnostic = Diagnostic(
         diagnostic_model=straight_line_model,
         likelihood=gaussian_likelihood,
         name="straight_line",

@@ -3,9 +3,9 @@
 The Likelihoods module
 ======================
 
-.. _DiagnosticLikelihood-ref:
+.. _Diagnostic-ref:
 
-.. autoclass:: midas.likelihoods.DiagnosticLikelihood
+.. autoclass:: midas.likelihoods.Diagnostic
 
 
 Built-in likelihood functions

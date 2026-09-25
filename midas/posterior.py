@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
-from types import MappingProxyType
+from collections.abc import Sequence
 from numpy import array, ndarray, zeros
 from midas.models.fields import FieldModel
 from midas.models import DiagnosticModel
@@ -12,10 +11,10 @@ from midas.parameters import validate_parameters, validate_field_requests
 class _EvaluationContext:
     """Resolve parameter and field values for one posterior evaluation."""
 
-    def __init__(self, state: "Posterior", theta: ndarray):
-        self.state = state
+    def __init__(self, posterior: Posterior, theta: ndarray):
+        self.state = posterior
         self.theta = theta.copy()
-        self.parameter_values = state.split_parameters(self.theta)
+        self.parameter_values = posterior.split_parameters(self.theta)
         self._field_values = {}
         self._field_jacobians = {}
 
@@ -24,7 +23,7 @@ class _EvaluationContext:
         return self.state.n_params
 
     @property
-    def slices(self) -> Mapping[str, slice]:
+    def slices(self) -> dict[str, slice]:
         return self.state.slices
 
     def get_parameter_values(self, parameters: Parameters) -> dict[str, ndarray]:
@@ -98,7 +97,7 @@ class LikelihoodFunction(ABC):
         pass
 
 
-class DiagnosticLikelihood:
+class Diagnostic:
     """
     A class enabling the calculation of the likelihood (and its derivative) for the data
     of a particular diagnostic.
@@ -190,14 +189,14 @@ class DiagnosticLikelihood:
         if not isinstance(diagnostic_model, DiagnosticModel):
             raise TypeError(
                 f"""\n
-                \r[ DiagnosticLikelihood error ]
+                \r[ Diagnostic error ]
                 \r>> The 'diagnostic_model' argument must be an instance of
                 \r>> ``DiagnosticModel``, but instead has type:
                 \r>> {type(diagnostic_model)}
                 """
             )
 
-        error_source = "DiagnosticLikelihood"
+        error_source = "Diagnostic"
         description = "given 'diagnostic_model'"
         validate_parameters(diagnostic_model, error_source, description)
         validate_field_requests(diagnostic_model, error_source, description)
@@ -207,7 +206,7 @@ class DiagnosticLikelihood:
         if not isinstance(likelihood, LikelihoodFunction):
             raise TypeError(
                 f"""\n
-                \r[ DiagnosticLikelihood error ]
+                \r[ Diagnostic error ]
                 \r>> The 'likelihood' argument must be an instance of
                 \r>> ``LikelihoodFunction``, but instead has type:
                 \r>> {type(likelihood)}
@@ -216,7 +215,7 @@ class DiagnosticLikelihood:
 
         validate_parameters(
             likelihood,
-            error_source="DiagnosticLikelihood",
+            error_source="Diagnostic",
             description="given 'likelihood'",
         )
 
@@ -294,9 +293,9 @@ class BasePrior(ABC):
         gradients = self.gradients(**param_values, **field_values)
 
         grad = zeros(context.n_params)
-        for p in param_values.keys():
-            slc = context.slices[p]
-            grad[slc] += gradients[p]
+        for param_name in param_values:
+            slc = context.slices[param_name]
+            grad[slc] += gradients[param_name]
 
         for field_name, jacobians in field_jacobians.items():
             for param_name, jacobian in jacobians.items():
@@ -319,20 +318,20 @@ class Posterior:
     n_params: int
     parameter_names: tuple[str, ...]
     parameter_set: frozenset[str]
-    parameter_sizes: Mapping[str, int]
-    slices: Mapping[str, slice]
-    field_models: Mapping[str, FieldModel]
-    components: tuple[DiagnosticLikelihood | BasePrior, ...]
+    parameter_sizes: dict[str, int]
+    slices: dict[str, slice]
+    field_models: dict[str, FieldModel]
+    components: tuple[Diagnostic | BasePrior, ...]
 
     def __init__(
         self,
-        diagnostics: Sequence[DiagnosticLikelihood],
+        diagnostics: Sequence[Diagnostic],
         priors: Sequence[BasePrior],
         field_models: Sequence[FieldModel],
     ):
         """
         Build the parametrisation for the posterior distribution by specifying the
-        diagnostic likelihoods and prior distributions of which it is comprised,
+        diagnostics and prior distributions of which it is comprised,
         and models for any fields whose values are requested by those components.
 
         Each of the given components of the posterior are treated as independent, such
@@ -340,7 +339,7 @@ class Posterior:
         log-probabilities.
 
         :param diagnostics: \
-            A sequence of ``DiagnosticLikelihood`` objects representing each
+            A sequence of ``Diagnostic`` objects representing each
             diagnostic included in the analysis.
 
         :param priors: \
@@ -357,7 +356,7 @@ class Posterior:
         self.__validate_component_names([*diagnostics, *priors])
 
         self.components = (*diagnostics, *priors)
-        self.field_models = MappingProxyType({f.name: f for f in field_models})
+        self.field_models = {f.name: f for f in field_models}
         # first gather all the fields that have been requested by the components
         requested_fields = set()
         [
@@ -384,7 +383,7 @@ class Posterior:
             raise ValueError(
                 f"""\n
                 \r[ build_posterior error ]
-                \r>> The set of fields requested by the diagnostic likelihoods and / or
+                \r>> The set of fields requested by the diagnostics and / or
                 \r>> priors does not match the set of modelled fields.
                 \r>> The requested fields are:
                 \r>> {requested_fields}
@@ -442,15 +441,15 @@ class Posterior:
         # convert to a dictionary which maps parameter names to corresponding
         # slices of the parameter vector
         slice_map = dict(slices)
-        self.slices = MappingProxyType(slice_map)
+        self.slices = slice_map
         self.parameter_set = frozenset(slice_map)
-        self.parameter_sizes = MappingProxyType({
+        self.parameter_sizes = {
             name: slc.stop - slc.start for name, slc in slice_map.items()
-        })
+        }
         self.parameter_names = tuple(slice_map)
-        self._components_by_name = MappingProxyType({
+        self._components_by_name = {
             component.name: component for component in self.components
-        })
+        }
 
     def split_parameters(self, theta: ndarray) -> dict[str, ndarray]:
         """
@@ -633,7 +632,7 @@ class Posterior:
         return {
             component.name: component.get_predictions(context)
             for component in self.components
-            if isinstance(component, DiagnosticLikelihood)
+            if isinstance(component, Diagnostic)
         }
 
     def sample_model_predictions(
@@ -643,7 +642,7 @@ class Posterior:
         predictions = defaultdict(list)
         diagnostics = [
             component for component in self.components
-            if isinstance(component, DiagnosticLikelihood)
+            if isinstance(component, Diagnostic)
         ]
         for theta in parameter_samples:
             context = self._context(theta)
@@ -685,12 +684,12 @@ class Posterior:
             )
 
         for index, diagnostic in enumerate(diagnostics):
-            if not isinstance(diagnostic, DiagnosticLikelihood):
+            if not isinstance(diagnostic, Diagnostic):
                 raise TypeError(
                     f"""\n
                     \r[ build_posterior error ]
                     \r>> The 'diagnostics' argument must contain only instances
-                    \r>> ``DiagnosticLikelihood``, but the object at index {index}
+                    \r>> ``Diagnostic``, but the object at index {index}
                     \r>> instead has type:
                     \r>> {type(diagnostic)}
                     """
@@ -740,7 +739,7 @@ class Posterior:
 
     @staticmethod
     def __validate_component_names(
-        components: Sequence[DiagnosticLikelihood | BasePrior],
+        components: Sequence[Diagnostic | BasePrior],
     ):
         component_names = []
         for index, component in enumerate(components):
@@ -813,9 +812,11 @@ class Posterior:
 
 
 def build_posterior(
-    diagnostics: Sequence[DiagnosticLikelihood],
+    diagnostics: Sequence[Diagnostic],
     priors: Sequence[BasePrior],
     field_models: Sequence[FieldModel],
 ) -> Posterior:
     """Validate posterior components and return an independent posterior."""
-    return Posterior(diagnostics, priors, field_models)
+    return Posterior(
+        diagnostics=diagnostics, priors=priors, field_models=field_models
+    )

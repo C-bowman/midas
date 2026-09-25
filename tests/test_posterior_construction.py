@@ -5,7 +5,7 @@ from numpy import array, column_stack, exp, eye, linspace, ones
 from numpy.random import default_rng
 from numpy.testing import assert_allclose
 from utilities import Polynomial, StraightLine
-from midas.likelihoods import GaussianLikelihood, DiagnosticLikelihood
+from midas.likelihoods import GaussianLikelihood, Diagnostic
 from midas.likelihoods.uncertainties import ConstantUncertainty
 from midas.models import DiagnosticModel
 from midas.models.fields import FieldModel, PiecewiseLinearField
@@ -16,7 +16,7 @@ from midas import FieldRequest, Fields, Parameters, build_posterior
 
 def build_diagnostic(name):
     x, y, sigma = StraightLine.testing_data()
-    return DiagnosticLikelihood(
+    return Diagnostic(
         diagnostic_model=StraightLine(x_axis=x),
         likelihood=GaussianLikelihood(y_data=y, sigma=sigma),
         name=name,
@@ -46,25 +46,25 @@ def test_build_posterior_rejects_duplicate_component_names():
         )
 
 
-def test_diagnostic_likelihood_rejects_invalid_likelihood_type():
+def test_diagnostic_rejects_invalid_likelihood_type():
     x, _, _ = StraightLine.testing_data()
 
     with pytest.raises(TypeError, match="'likelihood' argument"):
-        DiagnosticLikelihood(
+        Diagnostic(
             diagnostic_model=StraightLine(x_axis=x),
             likelihood=cast(LikelihoodFunction, object()), # assign an invalid type to 'likelihood'
             name="invalid_likelihood",
         )
 
 
-def test_diagnostic_likelihood_rejects_invalid_likelihood_parameters():
+def test_diagnostic_rejects_invalid_likelihood_parameters():
     x, y, sigma = StraightLine.testing_data()
     likelihood = GaussianLikelihood(y_data=y, sigma=sigma)
     # assign an invalid type to 'parameters'
     likelihood.parameters = cast(Parameters, [])
 
     with pytest.raises(TypeError, match="valid 'parameters' instance attribute"):
-        DiagnosticLikelihood(
+        Diagnostic(
             diagnostic_model=StraightLine(x_axis=x),
             likelihood=likelihood,
             name="invalid_likelihood_parameters",
@@ -190,7 +190,7 @@ def test_build_bounds():
 
     poly_model = Polynomial(x_axis=x, order=2)
     likelihood = GaussianLikelihood(y_data=y, sigma=sigma)
-    diagnostic = DiagnosticLikelihood(
+    diagnostic = Diagnostic(
         diagnostic_model=poly_model,
         likelihood=likelihood,
         name="poly"
@@ -296,7 +296,7 @@ def build_coupled_posterior(scalar_matrix=False, reverse=False):
         fields.reverse()
         requests.reverse()
     diagnostics = [
-        DiagnosticLikelihood(
+        Diagnostic(
             diagnostic_model=CoupledDiagnostic(requested),
             likelihood=GaussianLikelihood(
                 y_data=array([0.7, -0.2]),

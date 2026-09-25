@@ -145,7 +145,7 @@ _register(
         {"name": ""},
     ),
     _make_spec(
-        "DiagnosticLikelihood", "DiagnosticLikelihood", "Likelihoods",
+        "Diagnostic", "Diagnostic", "Diagnostics",
         [
             ("diagnostic_model", PortType.DIAGNOSTIC_MODEL),
             ("likelihood", PortType.LIKELIHOOD),

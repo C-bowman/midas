@@ -4,7 +4,7 @@ from scipy.optimize import minimize, approx_fprime
 
 from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
 from midas.likelihoods import ConstantUncertainty, LinearUncertainty
-from midas.likelihoods import DiagnosticLikelihood
+from midas.likelihoods import Diagnostic
 from midas import build_posterior
 
 from utilities import StraightLine
@@ -65,12 +65,12 @@ def test_parameterised_uncertainties(likelihood_function):
 
         model = StraightLine(x_axis=x)
 
-        line_likelihood = DiagnosticLikelihood(
+        line_diagnostic = Diagnostic(
             likelihood=likelihood_func, diagnostic_model=model, name="straight_line"
         )
 
         posterior = build_posterior(
-            diagnostics=[line_likelihood], priors=[], field_models=[]
+            diagnostics=[line_diagnostic], priors=[], field_models=[]
         )
 
         test_params = {

@@ -120,7 +120,7 @@ class PropertiesPanel(QWidget):
         elif type_id == "FieldRequest":
             pass
 
-        elif type_id == "DiagnosticLikelihood":
+        elif type_id == "Diagnostic":
             pass
 
         # ── Auto-generated nodes: build editors from default_properties ─

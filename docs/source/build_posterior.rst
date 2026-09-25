@@ -10,7 +10,7 @@ to determine the full set of unique parameters which are required, and creates a
 mapping between each parameter and the section of the 1D array it occupies.
 
 To construct the posterior, call ``build_posterior`` and pass
-the diagnostic likelihoods, priors and field models we wish to include in the analysis:
+the diagnostics, priors and field models we wish to include in the analysis:
 
 .. code-block:: python
 

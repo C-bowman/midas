@@ -1,5 +1,5 @@
 from numpy import ndarray, log, exp, logaddexp, sqrt, pi, isfinite
-from midas.posterior import LikelihoodFunction, DiagnosticLikelihood
+from midas.posterior import LikelihoodFunction
 from midas.parameters import Parameters
 from midas.likelihoods.uncertainties import UncertaintyModel
 from midas.likelihoods.uncertainties import ConstantUncertainty, LinearUncertainty

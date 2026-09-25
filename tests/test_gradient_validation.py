@@ -18,7 +18,7 @@ from midas.validation.gradients import (
 from midas.likelihoods import GaussianLikelihood
 from midas.models.fields import PiecewiseLinearField
 from midas.priors import GaussianPrior
-from midas.posterior import DiagnosticLikelihood, Posterior
+from midas.posterior import Diagnostic, Posterior
 from midas import build_posterior
 
 
@@ -280,7 +280,7 @@ def test_sampled_validator_rejects_nonfinite_cost(sampled_validator, monkeypatch
 def test_gradient_with_diagnostic_and_field_prior(monkeypatch):
     monkeypatch.setattr("midas.validation.gradients.default_rng", lambda: np.random.default_rng(777))
     axis, data, sigma = StraightLine.testing_data()
-    diagnostic = DiagnosticLikelihood(
+    diagnostic = Diagnostic(
         StraightLine(axis), GaussianLikelihood(y_data=data, sigma=sigma), name="line"
     )
     field_axis = np.linspace(0, 1, 3)

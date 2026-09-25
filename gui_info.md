@@ -76,7 +76,8 @@ categories:
   `BSplineField`, `ExSplineField`, `TriangularMeshField`
 - **Diagnostic Models** — `LinearDiagnosticModel`
 - **Uncertainty Models** — `ConstantUncertainty`, `LinearUncertainty`
-- **Likelihoods** — `DiagnosticLikelihood`, `GaussianLikelihood`,
+- **Diagnostics** — `Diagnostic`
+- **Likelihoods** — `GaussianLikelihood`,
   `LogisticLikelihood`, `CauchyLikelihood`
 - **Priors** — `GaussianPrior`, `ExponentialPrior`, `BetaPrior`,
   `GaussianProcessPrior`, `SoftLimitPrior`

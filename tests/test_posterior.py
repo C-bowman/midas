@@ -5,7 +5,7 @@ from numpy import array, linspace
 from numpy.testing import assert_allclose
 
 from midas import Fields, Parameters, build_posterior
-from midas.likelihoods import DiagnosticLikelihood, GaussianLikelihood
+from midas.likelihoods import Diagnostic, GaussianLikelihood
 from midas.priors import BasePrior
 
 from utilities import Polynomial, StraightLine
@@ -13,7 +13,7 @@ from utilities import Polynomial, StraightLine
 
 def build_line_diagnostic(name="line"):
     x, y, sigma = StraightLine.testing_data()
-    return DiagnosticLikelihood(
+    return Diagnostic(
         diagnostic_model=StraightLine(x),
         likelihood=GaussianLikelihood(y, sigma),
         name=name,
@@ -27,7 +27,7 @@ def test_independent_posteriors_survive_later_and_failed_builds():
 
     x, y, sigma = StraightLine.testing_data()
     polynomial = build_posterior([
-        DiagnosticLikelihood(
+        Diagnostic(
             diagnostic_model=Polynomial(x, order=2),
             likelihood=GaussianLikelihood(y, sigma),
             name="polynomial",
