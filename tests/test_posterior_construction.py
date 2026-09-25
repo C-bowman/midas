@@ -5,13 +5,13 @@ from numpy import array, column_stack, exp, eye, linspace, ones
 from numpy.random import default_rng
 from numpy.testing import assert_allclose
 from utilities import Polynomial, StraightLine
-from midas.likelihoods import GaussianLikelihood, Diagnostic
+from midas.likelihoods import GaussianLikelihood
 from midas.likelihoods.uncertainties import ConstantUncertainty
 from midas.models import DiagnosticModel
 from midas.models.fields import FieldModel, PiecewiseLinearField
 from midas.priors import GaussianPrior
 from midas.posterior import BasePrior, LikelihoodFunction
-from midas import FieldRequest, Fields, Parameters, build_posterior
+from midas import Diagnostic, FieldRequest, Fields, Parameters, build_posterior
 
 
 def build_diagnostic(name):

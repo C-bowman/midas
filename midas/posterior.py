@@ -12,7 +12,7 @@ class _EvaluationContext:
     """Resolve parameter and field values for one posterior evaluation."""
 
     def __init__(self, posterior: Posterior, theta: ndarray):
-        self.state = posterior
+        self.posterior = posterior
         self.theta = theta.copy()
         self.parameter_values = posterior.split_parameters(self.theta)
         self._field_values = {}
@@ -20,25 +20,25 @@ class _EvaluationContext:
 
     @property
     def n_params(self) -> int:
-        return self.state.n_params
+        return self.posterior.n_params
 
     @property
     def slices(self) -> dict[str, slice]:
-        return self.state.slices
+        return self.posterior.slices
 
     def get_parameter_values(self, parameters: Parameters) -> dict[str, ndarray]:
         return {p.name: self.parameter_values[p.name] for p in parameters}
 
     def get_field_values(self, field):
         if field not in self._field_values:
-            field_model = self.state.field_models[field.name]
+            field_model = self.posterior.field_models[field.name]
             field_params = self.get_parameter_values(field_model.parameters)
             self._field_values[field] = field_model.get_values(field_params, field)
         return self._field_values[field]
 
     def get_field_values_and_jacobians(self, field):
         if field not in self._field_jacobians:
-            field_model = self.state.field_models[field.name]
+            field_model = self.posterior.field_models[field.name]
             field_params = self.get_parameter_values(field_model.parameters)
             values, jacobians = field_model.get_values_and_jacobian(
                 field_params, field

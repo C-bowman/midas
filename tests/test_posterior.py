@@ -4,8 +4,8 @@ import pytest
 from numpy import array, linspace
 from numpy.testing import assert_allclose
 
-from midas import Fields, Parameters, build_posterior
-from midas.likelihoods import Diagnostic, GaussianLikelihood
+from midas import Diagnostic, Fields, Parameters, build_posterior
+from midas.likelihoods import GaussianLikelihood
 from midas.priors import BasePrior
 
 from utilities import Polynomial, StraightLine

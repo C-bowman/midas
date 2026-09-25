@@ -5,7 +5,7 @@ The Likelihoods module
 
 .. _Diagnostic-ref:
 
-.. autoclass:: midas.likelihoods.Diagnostic
+.. autoclass:: midas.Diagnostic
 
 
 Built-in likelihood functions

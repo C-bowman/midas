@@ -175,7 +175,7 @@ class TestGenerateScriptDiagnostic:
         g.add_node("Diagnostic")
         script = generate_script(g)
         assert "Diagnostic" in script
-        assert "from midas.likelihoods import" in script
+        assert "from midas import Diagnostic, build_posterior" in script
 
 
 # ── generate_script: topological ordering ──────────────────────────────

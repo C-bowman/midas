@@ -149,7 +149,7 @@ we can create an instance of :ref:`Diagnostic <Diagnostic-ref>`:
 
 .. code-block:: python
 
-    from midas.likelihoods import Diagnostic
+    from midas import Diagnostic
 
     straight_line_model = StraightLine(x_axis=measurement_positions)
 

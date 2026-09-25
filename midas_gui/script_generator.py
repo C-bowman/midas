@@ -189,7 +189,7 @@ def _collect_imports(graph: GraphModel) -> dict[str, set[str]]:
         elif type_id == "FieldRequest":
             _add("midas.parameters", "FieldRequest")
         elif type_id == "Diagnostic":
-            _add("midas.likelihoods", "Diagnostic")
+            _add("midas", "Diagnostic")
         elif type_id in ("Array", "Coordinates"):
             pass  # numpy arrays / dicts — no special import
         else:

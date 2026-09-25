@@ -18,8 +18,8 @@ from midas.validation.gradients import (
 from midas.likelihoods import GaussianLikelihood
 from midas.models.fields import PiecewiseLinearField
 from midas.priors import GaussianPrior
-from midas.posterior import Diagnostic, Posterior
-from midas import build_posterior
+from midas.posterior import Posterior
+from midas import Diagnostic, build_posterior
 
 
 @pytest.mark.parametrize("n_passes, status, rate", [

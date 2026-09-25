@@ -4,8 +4,7 @@ from scipy.optimize import minimize, approx_fprime
 
 from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
 from midas.likelihoods import ConstantUncertainty, LinearUncertainty
-from midas.likelihoods import Diagnostic
-from midas import build_posterior
+from midas import Diagnostic, build_posterior
 
 from utilities import StraightLine
 
