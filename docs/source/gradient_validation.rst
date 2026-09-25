@@ -70,7 +70,9 @@ Gradient report
 
    .. automethod:: GradientReport.print_report
 
-For example, a successful report is formatted as:
+For example, a successful report can be seen in the
+[Z-effective example notebook](https://github.com/C-bowman/midas-examples/blob/main/z-eff/z_effective_inference.ipynb)
+and is formatted as:
 
 .. role:: gradient-report-pass
    :class: gradient-report-pass
