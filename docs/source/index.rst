@@ -67,5 +67,6 @@ but is completely independent of the specific choice of parametrisation for thos
    likelihoods_module
    state_module
    posterior_module
+   gradient_validation
    transforms_module
    gui

@@ -172,7 +172,8 @@ class NormalisedCost:
 
         assert isinstance(bounds, ndarray)
         assert bounds.ndim == 2
-        assert bounds.shape[1] == 2
+        assert bounds.shape == (PlasmaState.n_params, 2)
+        assert (bounds[:, 1] > bounds[:, 0]).all()
 
         self.scale = bounds[:, 1] - bounds[:, 0]
         self.shift = bounds[:, 0]
@@ -244,3 +245,27 @@ class NormalisedCost:
             1D array.
         """
         return self._cost_gradient(normalised_point * self.scale + self.shift) * self.scale
+
+    def component_cost(self, normalised_point: ndarray, component_name: str) -> float:
+        """
+        Calculate the cost for a specific component given a set of normalised parameter values.
+
+        :param normalised_point: \
+            The normalised parameter values as a 1D array.
+            
+        :param component_name: \
+            The name of the component for which to calculate the cost.
+
+        :return: \
+            The cost for the specified component.
+        """
+        theta = normalised_point * self.scale + self.shift
+        component = next(c for c in PlasmaState.components if c.name == component_name)
+        PlasmaState.theta = theta
+        return -component.log_probability()
+
+    def component_cost_gradient(self, normalised_point: ndarray, component_name: str) -> ndarray:
+        """Calculate a component's cost gradient in normalised coordinates."""
+        component = next(c for c in PlasmaState.components if c.name == component_name)
+        PlasmaState.theta = self.denormalise(normalised_point)
+        return -component.log_probability_gradient() * self.scale

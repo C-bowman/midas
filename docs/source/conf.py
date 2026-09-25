@@ -25,9 +25,9 @@ copyright = '2024, Chris Bowman'
 author = 'Chris Bowman'
 
 # The full version, including alpha/beta/rc tags
-release = "0.3.1"
+release = "0.4.1"
 # Major.minor version
-version = "0.3.1"
+version = "0.4.1"
 
 # -- General configuration ---------------------------------------------------
 
@@ -45,6 +45,8 @@ extensions = [
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+html_static_path = ['_static']
+html_css_files = ['gradient-report.css']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
