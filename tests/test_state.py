@@ -9,10 +9,9 @@ from midas.likelihoods import GaussianLikelihood, DiagnosticLikelihood
 from midas.likelihoods.uncertainties import ConstantUncertainty
 from midas.models import DiagnosticModel
 from midas.models.fields import FieldModel, PiecewiseLinearField
-from midas.posterior import gradient, log_probability
 from midas.priors import GaussianPrior
 from midas.state import BasePrior, LikelihoodFunction
-from midas import FieldRequest, Fields, Parameters, PlasmaState
+from midas import FieldRequest, Fields, Parameters, build_posterior
 
 
 def build_diagnostic(name):
@@ -29,7 +28,7 @@ def test_build_posterior_rejects_invalid_component_names(name):
     diagnostic = build_diagnostic(name)
 
     with pytest.raises(ValueError, match="non-empty string 'name'"):
-        PlasmaState.build_posterior(
+        build_posterior(
             diagnostics=[diagnostic],
             priors=[],
             field_models=[],
@@ -40,7 +39,7 @@ def test_build_posterior_rejects_duplicate_component_names():
     diagnostics = [build_diagnostic("duplicate"), build_diagnostic("duplicate")]
 
     with pytest.raises(ValueError, match="unique name"):
-        PlasmaState.build_posterior(
+        build_posterior(
             diagnostics=diagnostics,
             priors=[],
             field_models=[],
@@ -86,7 +85,7 @@ def test_build_posterior_rejects_invalid_field_model_names(name):
     field_model.name = cast(str, name)
 
     with pytest.raises(ValueError, match="field model must have a non-empty string"):
-        PlasmaState.build_posterior(
+        build_posterior(
             diagnostics=[],
             priors=[],
             field_models=[field_model],
@@ -98,7 +97,7 @@ def test_build_posterior_rejects_invalid_field_model_parameters():
     field_model.parameters = cast(Parameters, [])
 
     with pytest.raises(TypeError, match="valid 'parameters' instance attribute"):
-        PlasmaState.build_posterior(
+        build_posterior(
             diagnostics=[],
             priors=[],
             field_models=[field_model],
@@ -121,17 +120,17 @@ def test_build_posterior_with_shared_field_parameters(parameter_size):
 
     if parameter_size != 3:
         with pytest.raises(ValueError, match="differ in their size"):
-            PlasmaState.build_posterior([], priors, field_models)
+            build_posterior([], priors, field_models)
     else:
-        PlasmaState.build_posterior([], priors, field_models)
-        assert PlasmaState.slices == {"shared_parameter": slice(0, 3)}
-        assert PlasmaState.parameter_sizes == {"shared_parameter": 3}
-        assert PlasmaState.n_params == 3
+        posterior = build_posterior([], priors, field_models)
+        assert posterior.slices == {"shared_parameter": slice(0, 3)}
+        assert posterior.parameter_sizes == {"shared_parameter": 3}
+        assert posterior.n_params == 3
 
 
 def test_build_posterior_rejects_duplicate_field_names():
     with pytest.raises(ValueError, match="unique field name"):
-        PlasmaState.build_posterior(
+        build_posterior(
             diagnostics=[],
             priors=[],
             field_models=[build_field_model(), build_field_model()],
@@ -140,7 +139,7 @@ def test_build_posterior_rejects_duplicate_field_names():
 
 def test_build_posterior_rejects_zero_parameter_posterior():
     with pytest.raises(ValueError, match="must contain at least one parameter"):
-        PlasmaState.build_posterior(
+        build_posterior(
             diagnostics=[],
             priors=[],
             field_models=[],
@@ -161,29 +160,29 @@ def test_build_posterior_generates_consistent_parameter_mappings():
         field_request=field_request,
     )
 
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=[diagnostic],
         priors=[prior],
         field_models=[field_model],
     )
 
-    assert PlasmaState.slices == {
+    assert posterior.slices == {
         "emission_linear_basis": slice(0, 3),
         "gradient": slice(3, 4),
         "y_intercept": slice(4, 5),
     }
-    assert PlasmaState.parameter_names == (
+    assert posterior.parameter_names == (
         "emission_linear_basis",
         "gradient",
         "y_intercept",
     )
-    assert PlasmaState.parameter_set == set(PlasmaState.slices)
-    assert PlasmaState.parameter_sizes == {
+    assert posterior.parameter_set == set(posterior.slices)
+    assert posterior.parameter_sizes == {
         "emission_linear_basis": 3,
         "gradient": 1,
         "y_intercept": 1,
     }
-    assert PlasmaState.n_params == 5
+    assert posterior.n_params == 5
 
 
 def test_build_bounds():
@@ -197,7 +196,7 @@ def test_build_bounds():
         name="poly"
     )
 
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=[diagnostic],
         priors=[],
         field_models=[]
@@ -207,13 +206,13 @@ def test_build_bounds():
     param_bounds = {
         "poly_coefficients": (-10.0, 10.0),
     }
-    bounds = PlasmaState.build_bounds(param_bounds)
+    bounds = posterior.build_bounds(param_bounds)
 
     # now test we can assign different bounds using an array of the correct shape
     param_bounds = {
         "poly_coefficients": array([(-1, 1), (-2, 2), (-3, 3)]),
     }
-    bounds = PlasmaState.build_bounds(param_bounds)
+    bounds = posterior.build_bounds(param_bounds)
 
 
 class CoupledField(FieldModel):
@@ -312,7 +311,7 @@ def build_coupled_posterior(scalar_matrix=False, reverse=False):
             [],
         ])
     ]
-    PlasmaState.build_posterior(
+    return build_posterior(
         diagnostics=diagnostics,
         priors=[CoupledPrior(requests)],
         field_models=fields,
@@ -332,9 +331,9 @@ def finite_difference(function, theta):
 @pytest.mark.parametrize("reverse", [False, True])
 @pytest.mark.parametrize("seed", [1, 7, 23])
 def test_shared_parameter_gradients(scalar_matrix, reverse, seed):
-    build_coupled_posterior(scalar_matrix, reverse)
-    assert PlasmaState.n_params == 6
-    assert PlasmaState.parameter_sizes == {
+    posterior = build_coupled_posterior(scalar_matrix, reverse)
+    assert posterior.n_params == 6
+    assert posterior.parameter_sizes == {
         "bias": 1,
         "emission_offset": 1,
         "scale": 1,
@@ -342,35 +341,36 @@ def test_shared_parameter_gradients(scalar_matrix, reverse, seed):
         "temperature_offset": 1,
     }
     rng = default_rng(seed)
-    theta = rng.uniform(-0.3, 0.3, PlasmaState.n_params)
-    theta[PlasmaState.slices["scale"]] = 1.2
-    for component in PlasmaState.components:
+    theta = rng.uniform(-0.3, 0.3, posterior.n_params)
+    theta[posterior.slices["scale"]] = 1.2
+    for component in posterior.components:
         def probability_at(point):
-            PlasmaState.theta = point.copy()
-            return component.log_probability()
+            return posterior.component_log_probability(point, component.name)
 
         numerical = finite_difference(probability_at, theta)
-        PlasmaState.theta = theta.copy()
         assert_allclose(
-            component.log_probability_gradient(), numerical, rtol=1e-7, atol=1e-8
+            posterior.component_gradient(theta, component.name),
+            numerical,
+            rtol=1e-7,
+            atol=1e-8,
         )
-    numerical = finite_difference(log_probability, theta)
-    assert_allclose(gradient(theta), numerical, rtol=1e-7, atol=1e-8)
+    numerical = finite_difference(posterior.log_probability, theta)
+    assert_allclose(posterior.gradient(theta), numerical, rtol=1e-7, atol=1e-8)
 
 
 def test_shared_parameter_jacobians_are_grouped_by_field():
-    build_coupled_posterior()
-    PlasmaState.theta = ones(PlasmaState.n_params) * 0.2
-    diagnostic = PlasmaState.components[0]
-    parameters, values, jacobians = PlasmaState.get_values_and_jacobians(
+    posterior = build_coupled_posterior()
+    context = posterior._context(ones(posterior.n_params) * 0.2)
+    diagnostic = posterior.components[0]
+    parameters, values, jacobians = context.get_values_and_jacobians(
         diagnostic.model_parameters, diagnostic.fields
     )
     assert set(parameters) == {"shared", "scale", "bias"}
     assert set(values) == set(jacobians) == {"emission", "temperature"}
     for request in diagnostic.fields:
-        model = PlasmaState.field_models[request.name]
+        model = posterior.field_models[request.name]
         expected_values, expected_jacobians = model.get_values_and_jacobian(
-            PlasmaState.get_parameter_values(model.parameters), request
+            context.get_parameter_values(model.parameters), request
         )
         assert_allclose(values[request.name], expected_values)
         assert set(jacobians[request.name]) == set(expected_jacobians)

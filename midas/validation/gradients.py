@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from numpy import isfinite, ndarray, zeros
 from numpy.random import default_rng
 from numpy.linalg import norm as l2_norm
-from midas.state import PlasmaState
+from midas.state import Posterior
 from midas.posterior import NormalisedCost
 
 
@@ -200,6 +200,7 @@ class GradientReport:
 
     
 def validate_gradient(
+    posterior: Posterior,
     parameter_bounds: ndarray,
     n_samples: int = 5,
     dir_tol: float = 1e-4,
@@ -217,7 +218,7 @@ def validate_gradient(
 
     :param parameter_bounds: \
         Lower and upper bounds for every posterior parameter, as an array with
-        shape ``(PlasmaState.n_params, 2)``.
+        shape ``(posterior.n_params, 2)``.
 
     :param n_samples: \
         Number of random normalised parameter points to test.
@@ -240,11 +241,11 @@ def validate_gradient(
         If any sampled point produces a non-finite cost.
     """
 
-    norm = NormalisedCost(bounds=parameter_bounds)
+    norm = NormalisedCost(posterior=posterior, bounds=parameter_bounds)
     rng = default_rng()
 
     test_points = rng.uniform(
-        low=0.1, high=0.9, size=(n_samples, PlasmaState.n_params)
+        low=0.1, high=0.9, size=(n_samples, posterior.n_params)
     )
 
     finite_costs = all(isfinite(norm.cost(p)) for p in test_points)
@@ -255,15 +256,15 @@ def validate_gradient(
     results = {
         c.name: {
             p: {"max_dir_err": 0.0, "max_mag_err": 0.0, "n_passes": 0}
-            for p in PlasmaState.parameter_names
+            for p in posterior.parameter_names
         }
-        for c in PlasmaState.components
+        for c in posterior.components
     }
 
     for point in test_points:
-        for component in PlasmaState.components:
+        for component in posterior.components:
             analytic_grad = norm.component_cost_gradient(point, component.name)
-            for parameter, slc in PlasmaState.slices.items():
+            for parameter, slc in posterior.slices.items():
                 mag_err, dir_err = estimate_gradient_errors(
                     func=lambda x: norm.component_cost(x, component.name),
                     x0=point,

@@ -231,11 +231,11 @@ class TestGenerateScriptImports:
         script = generate_script(g)
         assert "import numpy as np" in script
 
-    def test_plasma_state_imported(self):
+    def test_build_posterior_imported(self):
         g = GraphModel()
         g.add_node("Array")
         script = generate_script(g)
-        assert "PlasmaState" in script
+        assert "from midas import build_posterior" in script
 
     def test_field_request_import(self):
         g = GraphModel()
@@ -254,6 +254,7 @@ class TestGenerateScriptPosterior:
         plf = g.add_node("PiecewiseLinearField")
         plf.properties["name"] = "te"
         script = generate_script(g)
+        assert "posterior = build_posterior(" in script
         assert "field_models=[te]" in script
 
     def test_includes_priors(self):
@@ -286,7 +287,8 @@ class TestGenerateScriptFlags:
         script = generate_script(g, runnable=True)
         assert "scipy.optimize" in script
         assert "HamiltonianChain" in script
-        assert "from midas import posterior" in script
+        assert "posterior.cost" in script
+        assert "posterior.gradient" in script
 
     def test_runnable_template_is_valid_python(self):
         g = GraphModel()

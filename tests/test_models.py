@@ -1,8 +1,8 @@
 from numpy import array
 from scipy.optimize import minimize, approx_fprime
 from midas.likelihoods import GaussianLikelihood
-from midas.state import PlasmaState, DiagnosticLikelihood
-from midas import posterior
+from midas.state import DiagnosticLikelihood
+from midas import build_posterior
 
 from utilities import StraightLine
 
@@ -23,7 +23,7 @@ def test_straight_line_fit():
         name="straight_line"
     )
 
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=[line_likelihood],
         priors=[],
         field_models=[]

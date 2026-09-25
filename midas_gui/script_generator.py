@@ -8,14 +8,13 @@ optimization_template = \
 
 # ── Optimization ──────────────────────────────────────────
 from scipy.optimize import minimize
-from midas import posterior
 
 # initial guess for optimization
-initial_guess = np.ones(PlasmaState.n_params)  # TODO: replace with an informed guess
+initial_guess = np.ones(posterior.n_params)  # TODO: replace with an informed guess
 
 # Build bounds for optimization and sampling
-bounds = PlasmaState.build_bounds(
-    parameter_bounds={p: (0.0, 10.0) for p in PlasmaState.parameter_set}  # TODO: specify informed bounds
+bounds = posterior.build_bounds(
+    parameter_bounds={p: (0.0, 10.0) for p in posterior.parameter_set}  # TODO: specify informed bounds
 )
 
 opt_result = minimize(
@@ -147,7 +146,7 @@ def generate_script(
 
     if diag_likelihoods or priors or field_models:
         lines.extend(dedent(f"""\
-            PlasmaState.build_posterior(
+            posterior = build_posterior(
                 diagnostics=[{', '.join(diag_likelihoods)}],
                 priors=[{', '.join(priors)}],
                 field_models=[{', '.join(field_models)}],
@@ -211,9 +210,9 @@ def _collect_imports(graph: GraphModel) -> dict[str, set[str]]:
                 if default_module and default_class:
                     _add(default_module, default_class)
 
-    # Always need PlasmaState if there's anything to build
+    # Always need the posterior factory if there's anything to build
     if graph.nodes:
-        _add("midas.state", "PlasmaState")
+        _add("midas", "build_posterior")
 
     return imports
 

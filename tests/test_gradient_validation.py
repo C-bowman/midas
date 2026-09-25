@@ -18,7 +18,8 @@ from midas.validation.gradients import (
 from midas.likelihoods import GaussianLikelihood
 from midas.models.fields import PiecewiseLinearField
 from midas.priors import GaussianPrior
-from midas.state import DiagnosticLikelihood, PlasmaState
+from midas.state import DiagnosticLikelihood, Posterior
+from midas import build_posterior
 
 
 @pytest.mark.parametrize("n_passes, status, rate", [
@@ -204,10 +205,16 @@ def sampled_validator(monkeypatch):
     factory = Mock(return_value=normalised)
     rng = Mock()
     rng.uniform.return_value = points
-    monkeypatch.setattr("midas.validation.gradients.PlasmaState", state)
     monkeypatch.setattr("midas.validation.gradients.NormalisedCost", factory)
     monkeypatch.setattr("midas.validation.gradients.default_rng", lambda: rng)
-    return SimpleNamespace(points=points, bounds=bounds, norm=normalised, factory=factory, rng=rng)
+    return SimpleNamespace(
+        points=points,
+        bounds=bounds,
+        posterior=state,
+        norm=normalised,
+        factory=factory,
+        rng=rng,
+    )
 
 
 @pytest.mark.parametrize("bad_errors, passes", [
@@ -224,6 +231,7 @@ def test_sampled_validator_aggregates_errors(sampled_validator, monkeypatch, bad
     monkeypatch.setattr("midas.validation.gradients.estimate_gradient_errors", estimates)
     setup = sampled_validator
     report = validate_gradient(
+        setup.posterior,
         setup.bounds,
         n_samples=3,
         mag_tol=0.1,
@@ -231,7 +239,9 @@ def test_sampled_validator_aggregates_errors(sampled_validator, monkeypatch, bad
         initial_step=1e-3,
     )
 
-    setup.factory.assert_called_once_with(bounds=setup.bounds)
+    setup.factory.assert_called_once_with(
+        posterior=setup.posterior, bounds=setup.bounds
+    )
     setup.rng.uniform.assert_called_once_with(low=0.1, high=0.9, size=(3, 2))
     assert report.n_samples == 3
     assert report.success == (passes == 3)
@@ -261,7 +271,9 @@ def test_sampled_validator_rejects_nonfinite_cost(sampled_validator, monkeypatch
     estimates = Mock()
     monkeypatch.setattr("midas.validation.gradients.estimate_gradient_errors", estimates)
     with pytest.raises(ValueError, match="non-finite costs"):
-        validate_gradient(sampled_validator.bounds, n_samples=3)
+        validate_gradient(
+            sampled_validator.posterior, sampled_validator.bounds, n_samples=3
+        )
     estimates.assert_not_called()
 
 
@@ -277,15 +289,15 @@ def test_gradient_with_diagnostic_and_field_prior(monkeypatch):
         name="emission_prior", mean=np.zeros(3), standard_deviation=np.ones(3),
         field_request=FieldRequest(name="emission", coordinates={"radius": field_axis}),
     )
-    PlasmaState.build_posterior([diagnostic], [prior], [field])
+    posterior = build_posterior([diagnostic], [prior], [field])
     bounds = np.array([[0.1, 3.0]] * 3 + [[1.0, 5.0], [-3.0, 0.0]])
 
-    report = validate_gradient(bounds, n_samples=3)
+    report = validate_gradient(posterior, bounds, n_samples=3)
 
     assert report.n_samples == 3
     assert set(report.results) == {"line", "emission_prior"}
     for parameters in report.results.values():
-        assert set(parameters) == set(PlasmaState.slices)
+        assert set(parameters) == set(posterior.slices)
     for component, parameter in [
         ("line", "gradient"), ("line", "y_intercept"),
         ("emission_prior", "emission_linear_basis"),
@@ -301,6 +313,7 @@ def test_gradient_with_diagnostic_and_field_prior(monkeypatch):
     np.array([[2.0, 1.0], [0.0, 1.0]]), np.array([[0.0, np.inf], [0.0, 1.0]]),
 ])
 def test_invalid_parameter_bounds(monkeypatch, bounds):
-    monkeypatch.setattr(PlasmaState, "n_params", 2, raising=False)
+    posterior = Posterior.__new__(Posterior)
+    posterior.n_params = 2
     with pytest.raises(AssertionError):
-        validate_gradient(bounds)
+        validate_gradient(posterior, bounds)

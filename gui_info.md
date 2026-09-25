@@ -172,7 +172,8 @@ are automatically reloaded next time.
 Click the **"Export .py"** button in the Code Preview panel (or use
 **File → Export Script…**) to save the generated Python script. The exported
 script is a standalone file that imports MIDAS, constructs every object in
-dependency order, and calls `PlasmaState.build_posterior()`.
+dependency order, and assigns the result of `build_posterior()` to a local
+`posterior` instance.
 
 ### Settings
 

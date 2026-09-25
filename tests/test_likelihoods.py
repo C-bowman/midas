@@ -5,7 +5,7 @@ from scipy.optimize import minimize, approx_fprime
 from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
 from midas.likelihoods import ConstantUncertainty, LinearUncertainty
 from midas.likelihoods import DiagnosticLikelihood
-from midas import posterior, PlasmaState
+from midas import build_posterior
 
 from utilities import StraightLine
 
@@ -69,7 +69,7 @@ def test_parameterised_uncertainties(likelihood_function):
             likelihood=likelihood_func, diagnostic_model=model, name="straight_line"
         )
 
-        PlasmaState.build_posterior(
+        posterior = build_posterior(
             diagnostics=[line_likelihood], priors=[], field_models=[]
         )
 
@@ -80,7 +80,7 @@ def test_parameterised_uncertainties(likelihood_function):
             "test_constant_error": 0.3,
             "test_fractional_error": 0.05,
         }
-        test_point = PlasmaState.merge_parameters(test_params)
+        test_point = posterior.merge_parameters(test_params)
 
         opt_result = minimize(
             fun=posterior.cost, x0=test_point, jac=posterior.cost_gradient

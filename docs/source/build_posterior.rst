@@ -9,12 +9,12 @@ To do this, MIDAS inspects the models and priors that are included in the proble
 to determine the full set of unique parameters which are required, and creates a
 mapping between each parameter and the section of the 1D array it occupies.
 
-To construct the posterior function, we call ``PlasmaState.build_posterior`` and pass
+To construct the posterior, call ``build_posterior`` and pass
 the diagnostic likelihoods, priors and field models we wish to include in the analysis:
 
 .. code-block:: python
 
-    from midas import PlasmaState
+    from midas import build_posterior
 
     # collect all the diagnostics we want to include in the analysis
     diagnostics = [brem_likelihood, pressure_likelihood, interferometer_likelihood]
@@ -26,22 +26,22 @@ the diagnostic likelihoods, priors and field models we wish to include in the an
     field_models = [te_field_model, ne_field_model]
 
     # Use the collected models and priors to build the posterior distribution
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=diagnostics,
         priors=priors,
         field_models=field_models,
     )
 
-After calling ``PlasmaState.build_posterior``, we can import the
-:ref:`midas.posterior <posterior-ref>`
-module, and use its functions to evaluate the posterior or its gradient:
+The returned :class:`~midas.Posterior` owns the complete parameterisation and
+provides bound methods for evaluating the posterior or its gradient:
 
 .. code-block:: python
 
-    from midas import posterior
-
     log_prob = posterior.log_probability(parameter_values)
     log_prob_gradient = posterior.gradient(parameter_values)
+
+Each call to ``build_posterior`` returns an independent analysis. Multiple posterior
+instances can therefore coexist and be evaluated concurrently in one Python process.
 
 
 Sharing parameters
@@ -65,7 +65,6 @@ dependence on a shared parameter in the direct parameter derivative: MIDAS accou
 for that dependence separately. Field names must remain unique, and a component's
 field names must not collide with its directly requested parameter names.
 
-For code using ``PlasmaState.get_values_and_jacobians`` directly, the third return
-value is now a nested dictionary indexed by field name and then parameter name.
-The former ``PlasmaState.field_parameter_map`` has been removed because parameters
-no longer have a unique owning field.
+MIDAS keeps field Jacobians grouped by field and parameter internally, so parameters
+shared by several fields retain every derivative path. No current parameter vector is
+stored on the posterior between calls.

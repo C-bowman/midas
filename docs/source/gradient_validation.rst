@@ -4,14 +4,18 @@ Validating posterior gradients
 ==============================
 
 Analytic posterior gradients can be checked against centred finite differences
-after constructing the posterior with ``PlasmaState.build_posterior``. Pass the
-same parameter bounds used for optimisation to ``validate_gradient``:
+after constructing a posterior. Pass that instance and the same parameter bounds
+used for optimisation to ``validate_gradient``:
 
 .. code-block:: python
 
    from midas.validation import validate_gradient
 
-   report = validate_gradient(parameter_bounds=bounds, n_samples=5)
+      report = validate_gradient(
+         posterior=posterior,
+         parameter_bounds=bounds,
+         n_samples=5,
+      )
    report.print_report()
 
    if not report:

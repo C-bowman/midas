@@ -1,31 +1,14 @@
 .. _posterior-ref:
 
-Evaluating the posterior
-========================
+Evaluating a posterior
+======================
 
-.. autofunction:: midas.posterior.log_probability
+Posterior evaluations are methods of the instance returned by
+:func:`midas.build_posterior`.
 
-
-.. autofunction:: midas.posterior.gradient
-
-
-.. autofunction:: midas.posterior.cost
-
-
-.. autofunction:: midas.posterior.cost_gradient
-
-
-.. autofunction:: midas.posterior.component_log_probabilities
-
-
-.. autofunction:: midas.posterior.get_model_predictions
-
-
-.. autofunction:: midas.posterior.sample_model_predictions
-
-
-.. autofunction:: midas.posterior.sample_field_values
-
+.. autoclass:: midas.Posterior
+	:no-index:
+	:members: log_probability, gradient, cost, cost_gradient, component_log_probabilities, get_model_predictions, sample_model_predictions, sample_field_values
 
 Normalising the cost function for optimisation
 ----------------------------------------------
