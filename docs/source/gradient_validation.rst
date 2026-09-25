@@ -71,7 +71,8 @@ Gradient report
    .. automethod:: GradientReport.print_report
 
 For example, a successful report can be seen in the
-[Z-effective example notebook](https://github.com/C-bowman/midas-examples/blob/main/z-eff/z_effective_inference.ipynb)
+`Z-effective example notebook
+<https://github.com/C-bowman/midas-examples/blob/main/z-eff/z_effective_inference.ipynb>`_
 and is formatted as:
 
 .. role:: gradient-report-pass
