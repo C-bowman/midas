@@ -67,15 +67,34 @@ class VectorUncertainty(UncertaintyModel):
         return self.get_uncertainties(parameters), {self.name: self.jacobian}
 
 
+class PullbackVectorUncertainty(VectorUncertainty):
+    def get_uncertainties_and_jacobians(self, parameters):
+        raise AssertionError("The custom pullback should bypass Jacobian construction")
+
+    def get_uncertainties_and_pullback(self, parameters):
+        uncertainties = self.get_uncertainties(parameters)
+
+        def pullback(vector):
+            return {self.name: self.jacobian.T @ vector}
+
+        return uncertainties, pullback
+
+
 @pytest.mark.parametrize(
     "likelihood_function",
     [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
 )
-def test_vector_parameterised_uncertainty_gradient(likelihood_function):
+@pytest.mark.parametrize("custom_pullback", [False, True])
+def test_vector_parameterised_uncertainty_gradient(
+    likelihood_function, custom_pullback
+):
     predictions = array([0.8, 2.5, 3.7])
     y = array([1.0, 3.0, 4.0])
     parameters = array([1.2, 0.8])
-    likelihood = likelihood_function(y, VectorUncertainty())
+    uncertainty_model = (
+        PullbackVectorUncertainty() if custom_pullback else VectorUncertainty()
+    )
+    likelihood = likelihood_function(y, uncertainty_model)
 
     _, derivatives = likelihood.derivatives(
         predictions, vector_uncertainty=parameters

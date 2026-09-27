@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from numpy import ndarray
+from collections.abc import Callable
+from numpy import atleast_1d, ndarray
 from midas import Parameters, Fields, FieldRequest
 
 
@@ -61,6 +62,38 @@ class DiagnosticModel(ABC):
             Contributions through fields that depend on a requested parameter are
             propagated separately and added to its direct contribution.
         """
+
+    def predictions_and_pullback(
+        self, **parameters_and_fields: ndarray
+    ) -> tuple[ndarray, Callable[[ndarray], dict[str, ndarray]]]:
+        """
+        Calculate the model predictions and return a function which propagates a
+        gradient with respect to those predictions back to the model inputs.
+
+        The default implementation constructs the Jacobians using
+        :meth:`predictions_and_jacobians`. Models may override this method to compute
+        vector-Jacobian products directly without constructing full Jacobian arrays.
+
+        :param parameters_and_fields: \
+            The parameter and field values requested by the model.
+
+        :return: \
+            The model predictions followed by a pullback function. Given the gradient
+            of a scalar quantity with respect to the predictions, the pullback returns
+            its gradients with respect to each requested parameter and field as 1D
+            arrays.
+        """
+        predictions, jacobians = self.predictions_and_jacobians(
+            **parameters_and_fields
+        )
+
+        def pullback(vector: ndarray) -> dict[str, ndarray]:
+            return {
+                name: atleast_1d(vector @ jacobian)
+                for name, jacobian in jacobians.items()
+            }
+
+        return predictions, pullback
 
 
 class LinearDiagnosticModel(DiagnosticModel):
