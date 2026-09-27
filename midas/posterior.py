@@ -86,14 +86,15 @@ class LikelihoodFunction(ABC):
     @abstractmethod
     def derivatives(
         self, predictions: ndarray, **parameters: ndarray
-    ) -> ndarray:
+    ) -> tuple[ndarray, dict[str, ndarray]]:
         """
         :param predictions: \
             The model predictions of the measured data as a 1D array.
 
         :return: \
             The derivative of the log-likelihood with respect to each element of
-            ``predictions`` as a 1D array.
+            ``predictions`` as a 1D array, followed by a dictionary mapping each
+            likelihood parameter name to its log-likelihood gradient as a 1D array.
         """
         pass
 
