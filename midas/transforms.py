@@ -1,7 +1,7 @@
 from numpy import ndarray, sqrt, arctan2
 from scipy.interpolate import RectBivariateSpline
 from abc import ABC, abstractmethod
-from midas.parameters import Coordinates
+from midas.types import Coordinates
 
 
 class CoordinateTransform(ABC):

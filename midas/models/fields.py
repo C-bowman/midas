@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from numpy import arange, atleast_1d, concatenate, diff, ndarray, zeros, exp
 from scipy.linalg import solve
 from tokamesh.mesh import TriangularMesh
 from midas.parameters import Coordinates, FieldRequest, ParameterVector, Parameters
 from midas.parameters import validate_coordinates
+from midas.types import Pullback
 
 
 class FieldModel(ABC):
@@ -70,7 +70,7 @@ class FieldModel(ABC):
 
     def get_values_and_pullback(
         self, parameters: dict[str, ndarray], field: FieldRequest
-    ) -> tuple[ndarray, Callable[[ndarray], dict[str, ndarray]]]:
+    ) -> tuple[ndarray, Pullback]:
         """
         Get field values and a function which propagates a field-value gradient
         back to the field-model parameters.

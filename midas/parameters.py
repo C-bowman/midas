@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from numpy import ndarray
-
-Coordinates = dict[str, ndarray]
+from midas.types import Coordinates
 
 
 @dataclass

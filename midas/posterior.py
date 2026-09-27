@@ -7,6 +7,7 @@ from midas.models.fields import FieldModel
 from midas.models import DiagnosticModel
 from midas.parameters import FieldRequest, ParameterVector, Parameters, Fields
 from midas.parameters import validate_parameters, validate_field_requests
+from midas.types import Pullback
 
 
 class _EvaluationContext:
@@ -49,7 +50,9 @@ class _EvaluationContext:
             self._field_jacobians[field] = jacobians
         return self._field_values[field], self._field_jacobians[field]
 
-    def get_field_values_and_pullback(self, field):
+    def get_field_values_and_pullback(
+        self, field: FieldRequest
+    ) -> tuple[ndarray, Pullback]:
         if field not in self._field_pullbacks:
             field_model = self.posterior.field_models[field.name]
             field_params = self.get_parameter_values(field_model.parameters)
@@ -77,7 +80,9 @@ class _EvaluationContext:
             field_jacobians[field.name] = jacobians
         return param_values, field_values, field_jacobians
 
-    def get_values_and_pullbacks(self, parameters: Parameters, fields: Fields):
+    def get_values_and_pullbacks(
+        self, parameters: Parameters, fields: Fields
+    ) -> tuple[dict[str, ndarray], dict[str, ndarray], dict[str, Pullback]]:
         param_values = self.get_parameter_values(parameters)
         field_values = {}
         field_pullbacks = {}

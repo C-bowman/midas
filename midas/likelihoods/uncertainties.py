@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from numpy import atleast_1d, ndarray, full
 from midas import Parameters
+from midas.types import Pullback
 
 
 class UncertaintyModel(ABC):
@@ -58,7 +58,7 @@ class UncertaintyModel(ABC):
 
     def get_uncertainties_and_pullback(
         self, parameters: dict[str, ndarray]
-    ) -> tuple[ndarray, Callable[[ndarray], dict[str, ndarray]]]:
+    ) -> tuple[ndarray, Pullback]:
         """
         Get uncertainty values and a function which propagates an uncertainty
         gradient back to the uncertainty-model parameters.

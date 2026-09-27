@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from numpy import atleast_1d, ndarray
 from midas import Parameters, Fields, FieldRequest
+from midas.types import Pullback
 
 
 class DiagnosticModel(ABC):
@@ -65,7 +65,7 @@ class DiagnosticModel(ABC):
 
     def predictions_and_pullback(
         self, **parameters_and_fields: ndarray
-    ) -> tuple[ndarray, Callable[[ndarray], dict[str, ndarray]]]:
+    ) -> tuple[ndarray, Pullback]:
         """
         Calculate the model predictions and return a function which propagates a
         gradient with respect to those predictions back to the model inputs.
