@@ -20,15 +20,13 @@ Structure of a MIDAS analysis
 The high-level structure of a MIDAS analysis can be broken down as:
 
 * Create a :ref:`DiagnosticModel <DiagnosticModel-ref>` and likelihood function for
-  each diagnostic, then combine them in a
-  :ref:`DiagnosticLikelihood <DiagnosticLikelihood-ref>` object.
+  each diagnostic, then combine them in a :ref:`Diagnostic <Diagnostic-ref>` object.
 * Specify the prior distribution (or its components) using classes from the
   :ref:`midas.priors <priors-ref>` module (or implement your own using the provided
   base class).
-* Build the parametrisation for the posterior distribution by calling the
-  ``PlasmaState.build_posterior()`` function.
-* Use the functions in the :ref:`midas.posterior <posterior-ref>` module to evaluate the posterior
-  distribution, allowing for MAP estimation or sampling.
+* Build the posterior distribution by calling :func:`midas.build_posterior`.
+* Use the methods on the returned :class:`midas.Posterior` instance to evaluate the
+  posterior distribution, allowing for MAP estimation or sampling.
 
 In subsequent pages we will cover each of these steps in more detail.
 

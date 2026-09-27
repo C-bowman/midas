@@ -9,8 +9,7 @@ from midas.priors import GaussianProcessPrior, GaussianPrior, ExponentialPrior
 from midas.priors import BetaPrior, SoftLimitPrior, SoftBoundsPrior
 from midas.priors import LinearGaussianPrior
 from midas.models.fields import PiecewiseLinearField, FieldRequest
-from midas.state import PlasmaState
-from midas import posterior
+from midas import build_posterior
 
 rng = default_rng(2391)
 
@@ -298,7 +297,7 @@ def test_gp_prior():
         field_request=request,
     )
 
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=[], priors=[gp_prior], field_models=[linear_field]
     )
 
@@ -308,7 +307,7 @@ def test_gp_prior():
         "emission_mean_hyperpars": [0.05],
         "emission_cov_hyperpars": [1.0, -1.1],
     }
-    param_array = PlasmaState.merge_parameters(param_dict)
+    param_array = posterior.merge_parameters(param_dict)
 
     # evaluate the posterior gradient both analytically and numerically
     analytic_grad = posterior.gradient(param_array)
@@ -320,11 +319,11 @@ def test_gp_prior():
 
     # repeat the gradient calculation check after fixing the hyperparameters
     gp_prior.fix_hyperparameters(param_dict)
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=[], priors=[gp_prior], field_models=[linear_field]
     )
 
-    param_array = PlasmaState.merge_parameters(param_dict)
+    param_array = posterior.merge_parameters(param_dict)
     # evaluate the posterior gradient both analytically and numerically
     analytic_grad = posterior.gradient(param_array)
     numeric_grad = approx_fprime(xk=param_array, f=posterior.log_probability)
@@ -363,13 +362,13 @@ def test_unparameterized_priors(prior_class, kwargs, info):
         **kwargs,
     )
 
-    PlasmaState.build_posterior(
+    posterior = build_posterior(
         diagnostics=[], priors=[prior], field_models=[linear_field]
     )
 
     # build some test parameters at which to evaluate the posterior
     param_dict = {"emission_linear_basis": sin(0.5 * R) + 1.0}
-    param_array = PlasmaState.merge_parameters(param_dict)
+    param_array = posterior.merge_parameters(param_dict)
 
     # evaluate the posterior gradient both analytically and numerically
     analytic_grad = posterior.gradient(param_array)

@@ -1,7 +1,7 @@
 from numpy import full, ndarray, atleast_1d, zeros
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 from midas.validation import validate_numeric_input, validate_name
 
 

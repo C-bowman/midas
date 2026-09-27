@@ -56,7 +56,7 @@ but is completely independent of the specific choice of parametrisation for thos
    :caption: Contents:
 
    getting_started
-   diagnostic_likelihood
+   diagnostic
    defining_priors
    choosing_field_models
    build_posterior
@@ -65,8 +65,8 @@ but is completely independent of the specific choice of parametrisation for thos
    fields_module
    priors_module
    likelihoods_module
-   state_module
    posterior_module
+   normalisation_module
    gradient_validation
    transforms_module
    gui

@@ -7,7 +7,7 @@ from inference.gp.mean import MeanFunction, ConstantMean
 
 from midas.parameters import ParameterVector, FieldRequest
 from midas.parameters import Parameters, Fields, validate_coordinates
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 from midas.validation import validate_name
 
 
@@ -157,7 +157,7 @@ class GaussianProcessPrior(BasePrior):
         Fix the value of the mean and covariance hyperparameters. As this alters the
         overall set of parameters in the analysis, ``fix_hyperparameters`` should be
         called before building the posterior distribution by calling
-        ``PlasmaState.build_posterior``.
+        ``build_posterior``.
 
         :param hyperparameters: \
             A dictionary mapping the names of each of the mean and covariance

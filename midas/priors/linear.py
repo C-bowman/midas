@@ -2,7 +2,7 @@ from numpy import atleast_1d, full, ndarray
 from scipy.sparse import sparray
 
 from midas.parameters import FieldRequest, Fields, Parameters, ParameterVector
-from midas.state import BasePrior
+from midas.posterior import BasePrior
 from midas.validation import validate_name, validate_numeric_input
 
 

@@ -8,14 +8,13 @@ optimization_template = \
 
 # ── Optimization ──────────────────────────────────────────
 from scipy.optimize import minimize
-from midas import posterior
 
 # initial guess for optimization
-initial_guess = np.ones(PlasmaState.n_params)  # TODO: replace with an informed guess
+initial_guess = np.ones(posterior.n_params)  # TODO: replace with an informed guess
 
 # Build bounds for optimization and sampling
-bounds = PlasmaState.build_bounds(
-    parameter_bounds={p: (0.0, 10.0) for p in PlasmaState.parameter_set}  # TODO: specify informed bounds
+bounds = posterior.build_bounds(
+    parameter_bounds={p: (0.0, 10.0) for p in posterior.parameter_set}  # TODO: specify informed bounds
 )
 
 opt_result = minimize(
@@ -132,9 +131,9 @@ def generate_script(
     lines.append("# ── Build posterior ────────────────────────────────────────")
     lines.append("")
 
-    diag_likelihoods = [
+    diagnostics = [
         var_names[n.id] for n in graph.nodes.values()
-        if n.type_id == "DiagnosticLikelihood"
+        if n.type_id == "Diagnostic"
     ]
     priors = [
         var_names[n.id] for n in graph.nodes.values()
@@ -145,10 +144,10 @@ def generate_script(
         if NODE_TYPES.get(n.type_id, None) and NODE_TYPES[n.type_id].category == "Field Models"
     ]
 
-    if diag_likelihoods or priors or field_models:
+    if diagnostics or priors or field_models:
         lines.extend(dedent(f"""\
-            PlasmaState.build_posterior(
-                diagnostics=[{', '.join(diag_likelihoods)}],
+            posterior = build_posterior(
+                diagnostics=[{', '.join(diagnostics)}],
                 priors=[{', '.join(priors)}],
                 field_models=[{', '.join(field_models)}],
             )""").splitlines())
@@ -189,8 +188,8 @@ def _collect_imports(graph: GraphModel) -> dict[str, set[str]]:
             _add("midas.parameters", "ParameterVector")
         elif type_id == "FieldRequest":
             _add("midas.parameters", "FieldRequest")
-        elif type_id == "DiagnosticLikelihood":
-            _add("midas.likelihoods", "DiagnosticLikelihood")
+        elif type_id == "Diagnostic":
+            _add("midas", "Diagnostic")
         elif type_id in ("Array", "Coordinates"):
             pass  # numpy arrays / dicts — no special import
         else:
@@ -211,9 +210,9 @@ def _collect_imports(graph: GraphModel) -> dict[str, set[str]]:
                 if default_module and default_class:
                     _add(default_module, default_class)
 
-    # Always need PlasmaState if there's anything to build
+    # Always need the posterior factory if there's anything to build
     if graph.nodes:
-        _add("midas.state", "PlasmaState")
+        _add("midas", "build_posterior")
 
     return imports
 
@@ -289,14 +288,14 @@ def _emit_node(
                 coordinates={coord_var},
             )""").splitlines())
 
-    elif node.type_id == "DiagnosticLikelihood":
+    elif node.type_id == "Diagnostic":
         name = props.get("name", var)
         model_edge = _find_input_edge(graph, node.id, "diagnostic_model")
         like_edge = _find_input_edge(graph, node.id, "likelihood")
         model_var = var_names[model_edge.source_node_id] if model_edge else "None  # TODO"
         like_var = var_names[like_edge.source_node_id] if like_edge else "None  # TODO"
         lines.extend(dedent(f"""\
-            {var} = DiagnosticLikelihood(
+            {var} = Diagnostic(
                 diagnostic_model={model_var},
                 likelihood={like_var},
                 name="{name}",
@@ -396,7 +395,7 @@ _TYPE_GROUPS = [
     ("Field Models",            "# ── Field models ─────────────────────────────────────────"),
     ("Diagnostic Models",       "# ── Diagnostic models ────────────────────────────────────"),
     ("Likelihoods",             "# ── Likelihood models ────────────────────────────────────"),
-    ("DiagnosticLikelihood",    "# ── Diagnostic likelihoods ───────────────────────────────"),
+    ("Diagnostics",             "# ── Diagnostics ──────────────────────────────────────────"),
     ("Priors",                  "# ── Priors ───────────────────────────────────────────────"),
 ]
 
@@ -410,13 +409,13 @@ def _emit_grouped_nodes(
     """Emit nodes grouped by type, with upstream dependencies inlined."""
     for group_key, header in _TYPE_GROUPS:
         # Collect nodes for this group
-        if group_key == "DiagnosticLikelihood":
-            group_nodes = [n for n in graph.nodes.values() if n.type_id == "DiagnosticLikelihood"]
+        if group_key == "Diagnostics":
+            group_nodes = [n for n in graph.nodes.values() if n.type_id == "Diagnostic"]
         elif group_key == "Likelihoods":
-            # Likelihoods category but excluding DiagnosticLikelihood
+            # Likelihoods category excludes top-level diagnostics.
             group_nodes = [
                 n for n in graph.nodes.values()
-                if n.type_id != "DiagnosticLikelihood"
+                if n.type_id != "Diagnostic"
                 and NODE_TYPES.get(n.type_id) and NODE_TYPES[n.type_id].category == "Likelihoods"
             ]
         else:

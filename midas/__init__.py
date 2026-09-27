@@ -1,10 +1,12 @@
 from midas.parameters import ParameterVector, FieldRequest, Parameters, Fields
-from midas.state import PlasmaState
+from midas.posterior import Posterior, build_posterior, Diagnostic
 
 __all__ = [
     "ParameterVector",
     "FieldRequest",
     "Parameters",
     "Fields",
-    "PlasmaState"
+    "Posterior",
+    "build_posterior",
+    "Diagnostic",
 ]

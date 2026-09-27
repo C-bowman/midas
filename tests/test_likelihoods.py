@@ -3,9 +3,8 @@ from numpy import array, nan
 from scipy.optimize import minimize, approx_fprime
 
 from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
-from midas.likelihoods import ConstantUncertainty, LinearUncertainty
-from midas.likelihoods import DiagnosticLikelihood
-from midas import posterior, PlasmaState
+from midas.likelihoods import ConstantUncertainty, LinearUncertainty, UncertaintyModel
+from midas import Diagnostic, Parameters, build_posterior
 
 from utilities import StraightLine
 
@@ -51,6 +50,47 @@ def test_likelihoods_predictions_gradient(likelihood):
     assert max_abs_err < 1e-6
 
 
+class VectorUncertainty(UncertaintyModel):
+    def __init__(self):
+        self.name = "vector_uncertainty"
+        self.parameters = Parameters((self.name, 2))
+        self.jacobian = array([
+            [1.0, 0.2],
+            [0.5, 1.0],
+            [1.5, 0.4],
+        ])
+
+    def get_uncertainties(self, parameters):
+        return self.jacobian @ parameters[self.name]
+
+    def get_uncertainties_and_jacobians(self, parameters):
+        return self.get_uncertainties(parameters), {self.name: self.jacobian}
+
+
+@pytest.mark.parametrize(
+    "likelihood_function",
+    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
+)
+def test_vector_parameterised_uncertainty_gradient(likelihood_function):
+    predictions = array([0.8, 2.5, 3.7])
+    y = array([1.0, 3.0, 4.0])
+    parameters = array([1.2, 0.8])
+    likelihood = likelihood_function(y, VectorUncertainty())
+
+    _, derivatives = likelihood.derivatives(
+        predictions, vector_uncertainty=parameters
+    )
+    numerical = approx_fprime(
+        parameters,
+        lambda values: likelihood.log_likelihood(
+            predictions, vector_uncertainty=values
+        ),
+    )
+
+    assert derivatives["vector_uncertainty"].shape == parameters.shape
+    assert abs(derivatives["vector_uncertainty"] - numerical).max() < 1e-6
+
+
 @pytest.mark.parametrize(
     "likelihood_function",
     [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
@@ -65,12 +105,12 @@ def test_parameterised_uncertainties(likelihood_function):
 
         model = StraightLine(x_axis=x)
 
-        line_likelihood = DiagnosticLikelihood(
+        line_diagnostic = Diagnostic(
             likelihood=likelihood_func, diagnostic_model=model, name="straight_line"
         )
 
-        PlasmaState.build_posterior(
-            diagnostics=[line_likelihood], priors=[], field_models=[]
+        posterior = build_posterior(
+            diagnostics=[line_diagnostic], priors=[], field_models=[]
         )
 
         test_params = {
@@ -80,7 +120,7 @@ def test_parameterised_uncertainties(likelihood_function):
             "test_constant_error": 0.3,
             "test_fractional_error": 0.05,
         }
-        test_point = PlasmaState.merge_parameters(test_params)
+        test_point = posterior.merge_parameters(test_params)
 
         opt_result = minimize(
             fun=posterior.cost, x0=test_point, jac=posterior.cost_gradient

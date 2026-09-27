@@ -51,7 +51,7 @@ class UncertaintyModel(ABC):
             The Jacobians must be returned as a dictionary mapping each parameter name
             to its corresponding Jacobian. A 1D array may be returned for a scalar
             parameter. For parameter vectors, the Jacobian must have shape
-            ``(n_parameter_values, n_uncertainties)``.
+            ``(n_uncertainties, n_parameter_values)``.
         """
         pass
 
@@ -72,7 +72,7 @@ class ConstantUncertainty(UncertaintyModel):
         self.size = n_data
         self.name = parameter_name
         self.parameters = Parameters((self.name, 1))
-        self.jacobian = {self.name: full(self.size, 1.0)}
+        self.jacobian = {self.name: full((self.size, 1), 1.0)}
 
     def get_uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
         return full(self.size, parameters[self.name])
@@ -103,8 +103,8 @@ class LinearUncertainty(UncertaintyModel):
         self.frac_name = f"{parameter_prefix}_fractional_error"
         self.parameters = Parameters((self.const_name, 1), (self.frac_name, 1))
         self.jacobian = {
-            self.const_name: full(self.size, 1.0),
-            self.frac_name: self.y_data,
+            self.const_name: full((self.size, 1), 1.0),
+            self.frac_name: self.y_data[:, None],
         }
 
     def get_uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:

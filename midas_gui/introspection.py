@@ -27,7 +27,7 @@ _ABC_REGISTRY: list[tuple[str, str, str | None, PortType | None, str]] = [
     ("midas.models.diagnostics",      "DiagnosticModel",    "diagnostic_model", PortType.DIAGNOSTIC_MODEL, "Diagnostic Models"),
     ("midas.likelihoods",             "LikelihoodFunction", "likelihood",       PortType.LIKELIHOOD,       "Likelihoods"),
     ("midas.likelihoods.uncertainties","UncertaintyModel",  "uncertainties",    PortType.UNCERTAINTIES,     "Uncertainty Models"),
-    ("midas.state",                   "BasePrior",          None,               None,                      "Priors"),
+    ("midas.posterior",               "BasePrior",          None,               None,                      "Priors"),
 ]
 
 # ── Type annotation → PortType mapping ───────────────────────────────────
@@ -260,7 +260,7 @@ _BUILTIN_MODULES = [
     "midas.likelihoods",
     "midas.likelihoods.uncertainties",
     "midas.priors",
-    "midas.state",
+    "midas.posterior",
 ]
 
 
