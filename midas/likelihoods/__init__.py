@@ -62,7 +62,9 @@ class GaussianLikelihood(LikelihoodFunction):
         z = (self.y - predictions) / sigma
 
         dL_ds = (z**2 - 1) / sigma
-        parameter_derivatives = {param: jac @ dL_ds for param, jac in jacobians.items()}
+        parameter_derivatives = {
+            param: jac.T @ dL_ds for param, jac in jacobians.items()
+        }
         prediction_derivative = z / sigma
         return prediction_derivative, parameter_derivatives
 
@@ -137,7 +139,9 @@ class LogisticLikelihood(LikelihoodFunction):
 
         prediction_derivative = (2 / (1 + exp(-z)) - 1) * inv_scale
         dL_ds = (prediction_derivative * z - inv_scale) * self.scale_fac
-        parameter_derivatives = {param: jac @ dL_ds for param, jac in jacobians.items()}
+        parameter_derivatives = {
+            param: jac.T @ dL_ds for param, jac in jacobians.items()
+        }
         return prediction_derivative, parameter_derivatives
 
     def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
@@ -211,7 +215,9 @@ class CauchyLikelihood(LikelihoodFunction):
 
         prediction_derivative = 2 * z / ((1 + z**2) * gamma)
         dL_dg = prediction_derivative * z - inv_gamma
-        parameter_derivatives = {param: jac @ dL_dg for param, jac in jacobians.items()}
+        parameter_derivatives = {
+            param: jac.T @ dL_dg for param, jac in jacobians.items()
+        }
         return prediction_derivative, parameter_derivatives
 
     def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:

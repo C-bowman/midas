@@ -3,8 +3,8 @@ from numpy import array, nan
 from scipy.optimize import minimize, approx_fprime
 
 from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
-from midas.likelihoods import ConstantUncertainty, LinearUncertainty
-from midas import Diagnostic, build_posterior
+from midas.likelihoods import ConstantUncertainty, LinearUncertainty, UncertaintyModel
+from midas import Diagnostic, Parameters, build_posterior
 
 from utilities import StraightLine
 
@@ -48,6 +48,47 @@ def test_likelihoods_predictions_gradient(likelihood):
     numeric_grad = approx_fprime(f=func.log_likelihood, xk=test_values)
     max_abs_err = abs(analytic_grad - numeric_grad).max()
     assert max_abs_err < 1e-6
+
+
+class VectorUncertainty(UncertaintyModel):
+    def __init__(self):
+        self.name = "vector_uncertainty"
+        self.parameters = Parameters((self.name, 2))
+        self.jacobian = array([
+            [1.0, 0.2],
+            [0.5, 1.0],
+            [1.5, 0.4],
+        ])
+
+    def get_uncertainties(self, parameters):
+        return self.jacobian @ parameters[self.name]
+
+    def get_uncertainties_and_jacobians(self, parameters):
+        return self.get_uncertainties(parameters), {self.name: self.jacobian}
+
+
+@pytest.mark.parametrize(
+    "likelihood_function",
+    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
+)
+def test_vector_parameterised_uncertainty_gradient(likelihood_function):
+    predictions = array([0.8, 2.5, 3.7])
+    y = array([1.0, 3.0, 4.0])
+    parameters = array([1.2, 0.8])
+    likelihood = likelihood_function(y, VectorUncertainty())
+
+    _, derivatives = likelihood.derivatives(
+        predictions, vector_uncertainty=parameters
+    )
+    numerical = approx_fprime(
+        parameters,
+        lambda values: likelihood.log_likelihood(
+            predictions, vector_uncertainty=values
+        ),
+    )
+
+    assert derivatives["vector_uncertainty"].shape == parameters.shape
+    assert abs(derivatives["vector_uncertainty"] - numerical).max() < 1e-6
 
 
 @pytest.mark.parametrize(
