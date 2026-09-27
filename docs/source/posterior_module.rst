@@ -11,4 +11,4 @@ samplers.
 .. autofunction:: midas.build_posterior
 
 .. autoclass:: midas.Posterior
-   :members: log_probability, gradient, split_parameters, merge_parameters, split_samples, build_bounds, cost, cost_gradient, component_log_probabilities, get_model_predictions, sample_model_predictions, sample_field_values
+   :members: log_probability, gradient, split_parameters, merge_parameters, split_samples, build_bounds, cost, cost_gradient, component_log_probabilities, get_model_predictions, sample_model_predictions, get_field_values, sample_field_values
