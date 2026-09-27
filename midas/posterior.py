@@ -654,6 +654,21 @@ class Posterior:
                 )
         return {name: array(values) for name, values in predictions.items()}
 
+    def get_field_values(
+        self, theta: ndarray, field_request: FieldRequest
+    ) -> ndarray:
+        self.split_parameters(theta)
+        if field_request.name not in self.field_models:
+            raise ValueError(
+                f"No model was configured for field '{field_request.name}'."
+            )
+
+        field_model = self.field_models[field_request.name]
+        context = self._context(theta)
+        return field_model.get_values(
+            context.get_parameter_values(field_model.parameters), field_request
+        )
+
     def sample_field_values(
         self, parameter_samples: ndarray, field_request: FieldRequest
     ) -> ndarray:
