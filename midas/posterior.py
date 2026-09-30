@@ -7,6 +7,7 @@ from midas.models.fields import FieldModel
 from midas.models import DiagnosticModel
 from midas.parameters import FieldRequest, ParameterVector, Parameters, Fields
 from midas.parameters import validate_parameters, validate_field_requests
+from midas.types import Pullback
 
 
 class _EvaluationContext:
@@ -18,6 +19,7 @@ class _EvaluationContext:
         self.parameter_values = posterior.split_parameters(self.theta)
         self._field_values = {}
         self._field_jacobians = {}
+        self._field_pullbacks = {}
 
     @property
     def n_params(self) -> int:
@@ -48,6 +50,19 @@ class _EvaluationContext:
             self._field_jacobians[field] = jacobians
         return self._field_values[field], self._field_jacobians[field]
 
+    def get_field_values_and_pullback(
+        self, field: FieldRequest
+    ) -> tuple[ndarray, Pullback]:
+        if field not in self._field_pullbacks:
+            field_model = self.posterior.field_models[field.name]
+            field_params = self.get_parameter_values(field_model.parameters)
+            values, pullback = field_model.get_values_and_pullback(
+                field_params, field
+            )
+            self._field_values[field] = values
+            self._field_pullbacks[field] = pullback
+        return self._field_values[field], self._field_pullbacks[field]
+
     def get_values(self, parameters: Parameters, fields: Fields):
         param_values = self.get_parameter_values(parameters)
         field_values = {f.name: self.get_field_values(f) for f in fields}
@@ -64,6 +79,18 @@ class _EvaluationContext:
             field_values[field.name] = values
             field_jacobians[field.name] = jacobians
         return param_values, field_values, field_jacobians
+
+    def get_values_and_pullbacks(
+        self, parameters: Parameters, fields: Fields
+    ) -> tuple[dict[str, ndarray], dict[str, ndarray], dict[str, Pullback]]:
+        param_values = self.get_parameter_values(parameters)
+        field_values = {}
+        field_pullbacks = {}
+        for field in fields:
+            values, pullback = self.get_field_values_and_pullback(field)
+            field_values[field.name] = values
+            field_pullbacks[field.name] = pullback
+        return param_values, field_values, field_pullbacks
 
 
 class LikelihoodFunction(ABC):
@@ -144,13 +171,13 @@ class Diagnostic:
         return self.likelihood.log_likelihood(predictions, **likelihood_param_values)
 
     def log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
-        param_values, field_values, field_jacobians = (
-            context.get_values_and_jacobians(
+        param_values, field_values, field_pullbacks = (
+            context.get_values_and_pullbacks(
                 parameters=self.model_parameters, fields=self.fields
             )
         )
 
-        predictions, model_jacobians = self.forward_model.predictions_and_jacobians(
+        predictions, model_pullback = self.forward_model.predictions_and_pullback(
             **param_values, **field_values
         )
 
@@ -160,6 +187,7 @@ class Diagnostic:
         dL_dp, likelihood_gradients = self.likelihood.derivatives(
             predictions, **likelihood_param_values
         )
+        model_gradients = model_pullback(dL_dp)
 
         grad = zeros(context.n_params)
         for param_name, likelihood_grad in likelihood_gradients.items():
@@ -168,13 +196,13 @@ class Diagnostic:
 
         for param_name in param_values.keys():
             slc = context.slices[param_name]
-            grad[slc] += dL_dp @ model_jacobians[param_name]
+            grad[slc] += model_gradients[param_name]
 
-        for field_name, jacobians in field_jacobians.items():
-            field_gradient = dL_dp @ model_jacobians[field_name]
-            for param_name, jacobian in jacobians.items():
+        for field_name, field_pullback in field_pullbacks.items():
+            field_gradient = model_gradients[field_name]
+            for param_name, param_gradient in field_pullback(field_gradient).items():
                 slc = context.slices[param_name]
-                grad[slc] += field_gradient @ jacobian
+                grad[slc] += param_gradient
 
         return grad
 
@@ -286,8 +314,8 @@ class BasePrior(ABC):
         return self.probability(**param_values, **field_values)
 
     def log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
-        param_values, field_values, field_jacobians = (
-            context.get_values_and_jacobians(
+        param_values, field_values, field_pullbacks = (
+            context.get_values_and_pullbacks(
                 parameters=self.parameters, fields=self.fields
             )
         )
@@ -299,10 +327,11 @@ class BasePrior(ABC):
             slc = context.slices[param_name]
             grad[slc] += gradients[param_name]
 
-        for field_name, jacobians in field_jacobians.items():
-            for param_name, jacobian in jacobians.items():
+        for field_name, field_pullback in field_pullbacks.items():
+            parameter_gradients = field_pullback(gradients[field_name])
+            for param_name, param_gradient in parameter_gradients.items():
                 slc = context.slices[param_name]
-                grad[slc] += gradients[field_name] @ jacobian
+                grad[slc] += param_gradient
 
         return grad
 

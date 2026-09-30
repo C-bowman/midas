@@ -1,4 +1,6 @@
-from midas.parameters import FieldRequest
+import pickle
+
+from midas.parameters import FieldRequest, Fields, Parameters
 from numpy import linspace
 
 
@@ -24,3 +26,25 @@ def test_field_request():
 
     # check the size attribute is correct
     assert f1.size == n_points
+
+
+def test_parameters_pickle_round_trip():
+    parameters = Parameters(("first", 2), ("second", 3))
+
+    restored = pickle.loads(pickle.dumps(parameters))
+
+    assert restored == parameters
+    assert isinstance(restored, Parameters)
+
+
+def test_fields_pickle_round_trip():
+    radius = linspace(0.5, 1.5, 8)
+    fields = Fields(
+        FieldRequest(name="first", coordinates={"radius": radius}),
+        FieldRequest(name="second", coordinates={"radius": radius}),
+    )
+
+    restored = pickle.loads(pickle.dumps(fields))
+
+    assert restored == fields
+    assert isinstance(restored, Fields)

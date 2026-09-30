@@ -1,9 +1,68 @@
-from numpy import array
+from numpy import array, ndarray
+from numpy.testing import assert_allclose
 from scipy.optimize import minimize, approx_fprime
 from midas.likelihoods import GaussianLikelihood
-from midas import Diagnostic, build_posterior
+from midas.models import DiagnosticModel
+from midas import Diagnostic, Fields, Parameters, build_posterior
 
 from utilities import StraightLine
+
+
+def test_default_diagnostic_pullback_uses_jacobians():
+    x = array([1.0, 2.0, 4.0])
+    model = StraightLine(x)
+    predictions, pullback = model.predictions_and_pullback(
+        gradient=array([2.0]), y_intercept=array([0.5])
+    )
+
+    vector = array([0.2, -0.5, 1.0])
+    gradients = pullback(vector)
+
+    assert_allclose(predictions, 2.0 * x + 0.5)
+    assert_allclose(gradients["gradient"], array([vector @ x]))
+    assert_allclose(gradients["y_intercept"], array([vector.sum()]))
+    assert gradients["gradient"].shape == (1,)
+    assert gradients["y_intercept"].shape == (1,)
+
+
+class CustomPullbackModel(DiagnosticModel):
+    def __init__(self, matrix: ndarray):
+        self.matrix = matrix
+        self.parameters = Parameters(("coefficients", matrix.shape[1]))
+        self.fields = Fields()
+
+    def predictions(self, **values: ndarray) -> ndarray:
+        return self.matrix @ values["coefficients"]
+
+    def predictions_and_jacobians(self, **values: ndarray):
+        raise AssertionError("The custom pullback should bypass Jacobian construction")
+
+    def predictions_and_pullback(self, **values: ndarray):
+        predictions = self.predictions(**values)
+
+        def pullback(vector: ndarray) -> dict[str, ndarray]:
+            return {"coefficients": self.matrix.T @ vector}
+
+        return predictions, pullback
+
+
+def test_posterior_uses_custom_diagnostic_pullback():
+    matrix = array([[1.0, 0.2], [0.5, 1.5], [-0.3, 0.8]])
+    model = CustomPullbackModel(matrix)
+    likelihood = GaussianLikelihood(
+        y_data=array([1.0, -0.5, 0.8]),
+        sigma=array([0.5, 0.7, 0.9]),
+    )
+    posterior = build_posterior(
+        diagnostics=[Diagnostic(model, likelihood, "custom_pullback")],
+        priors=[],
+        field_models=[],
+    )
+    point = array([0.4, -0.2])
+
+    numerical = approx_fprime(point, posterior.log_probability)
+
+    assert_allclose(posterior.gradient(point), numerical, rtol=1e-6, atol=1e-7)
 
 def test_straight_line_fit():
     # Here we verify that we can fit a simple straight-line model to some

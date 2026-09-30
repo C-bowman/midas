@@ -248,6 +248,25 @@ class CoupledField(FieldModel):
         }
 
 
+class PullbackCoupledField(CoupledField):
+    def get_values_and_jacobian(self, parameters, field):
+        raise AssertionError("The custom pullback should bypass Jacobian construction")
+
+    def get_values_and_pullback(self, parameters, field):
+        radius = field.coordinates["radius"]
+        basis = column_stack((ones(radius.size), radius))
+        values = self.get_values(parameters, field)
+
+        def pullback(vector):
+            return {
+                "shared": (values[:, None] * basis).T @ vector,
+                "scale": array([(values * radius**2) @ vector]),
+                self.offset_name: array([values @ vector]),
+            }
+
+        return values, pullback
+
+
 class CoupledDiagnostic(DiagnosticModel):
     def __init__(self, fields):
         self.fields = Fields(*fields)
@@ -273,6 +292,22 @@ class CoupledDiagnostic(DiagnosticModel):
         return self.predictions(**values), self.jacobians
 
 
+class PullbackCoupledDiagnostic(CoupledDiagnostic):
+    def predictions_and_jacobians(self, **values):
+        raise AssertionError("The custom pullback should bypass Jacobian construction")
+
+    def predictions_and_pullback(self, **values):
+        predictions = self.predictions(**values)
+
+        def pullback(vector):
+            return {
+                name: array(vector @ jacobian, ndmin=1)
+                for name, jacobian in self.jacobians.items()
+            }
+
+        return predictions, pullback
+
+
 class CoupledPrior(BasePrior):
     def __init__(self, fields):
         self.name = "coupled_prior"
@@ -286,18 +321,27 @@ class CoupledPrior(BasePrior):
         return {name: -value for name, value in values.items()}
 
 
-def build_coupled_posterior(scalar_matrix=False, reverse=False):
+def build_coupled_posterior(
+    scalar_matrix=False,
+    reverse=False,
+    custom_pullback=False,
+    custom_field_pullback=False,
+):
     requests = [
         FieldRequest("emission", {"radius": linspace(0, 0.6, 3)}),
         FieldRequest("temperature", {"radius": linspace(0.1, 0.7, 4)}),
     ]
-    fields = [CoupledField(request.name, scalar_matrix) for request in requests]
+    field_model = PullbackCoupledField if custom_field_pullback else CoupledField
+    fields = [field_model(request.name, scalar_matrix) for request in requests]
     if reverse:
         fields.reverse()
         requests.reverse()
+    diagnostic_model = (
+        PullbackCoupledDiagnostic if custom_pullback else CoupledDiagnostic
+    )
     diagnostics = [
         Diagnostic(
-            diagnostic_model=CoupledDiagnostic(requested),
+            diagnostic_model=diagnostic_model(requested),
             likelihood=GaussianLikelihood(
                 y_data=array([0.7, -0.2]),
                 sigma=ConstantUncertainty(n_data=2, parameter_name="scale"),
@@ -329,9 +373,15 @@ def finite_difference(function, theta):
 
 @pytest.mark.parametrize("scalar_matrix", [False, True])
 @pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("custom_pullback", [False, True])
+@pytest.mark.parametrize("custom_field_pullback", [False, True])
 @pytest.mark.parametrize("seed", [1, 7, 23])
-def test_shared_parameter_gradients(scalar_matrix, reverse, seed):
-    posterior = build_coupled_posterior(scalar_matrix, reverse)
+def test_shared_parameter_gradients(
+    scalar_matrix, reverse, custom_pullback, custom_field_pullback, seed
+):
+    posterior = build_coupled_posterior(
+        scalar_matrix, reverse, custom_pullback, custom_field_pullback
+    )
     assert posterior.n_params == 6
     assert posterior.parameter_sizes == {
         "bias": 1,

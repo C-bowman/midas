@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from numpy import ndarray
-
-Coordinates = dict[str, ndarray]
+from midas.types import Coordinates
 
 
 @dataclass
@@ -109,6 +108,9 @@ class Parameters(tuple):
 
         return tuple.__new__(cls, validated)
 
+    def __reduce__(self):
+        return type(self), tuple(self)
+
 
 class Fields(tuple):
     """
@@ -147,6 +149,9 @@ class Fields(tuple):
                 )
 
         return tuple.__new__(cls, field_requests)
+
+    def __reduce__(self):
+        return type(self), tuple(self)
 
 
 def validate_parameters(model, error_source: str, description: str):

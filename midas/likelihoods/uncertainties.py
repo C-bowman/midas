@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from numpy import ndarray, full
+from numpy import atleast_1d, ndarray, full
 from midas import Parameters
+from midas.types import Pullback
 
 
 class UncertaintyModel(ABC):
@@ -54,6 +55,34 @@ class UncertaintyModel(ABC):
             ``(n_uncertainties, n_parameter_values)``.
         """
         pass
+
+    def get_uncertainties_and_pullback(
+        self, parameters: dict[str, ndarray]
+    ) -> tuple[ndarray, Pullback]:
+        """
+        Get uncertainty values and a function which propagates an uncertainty
+        gradient back to the uncertainty-model parameters.
+
+        The default implementation constructs the Jacobians using
+        :meth:`get_uncertainties_and_jacobians`. Models may override this method to
+        compute vector-Jacobian products directly without constructing full Jacobian
+        arrays.
+
+        :return: \
+            The uncertainty values followed by a reusable pullback function. Given
+            the gradient of a scalar quantity with respect to the uncertainties, the
+            pullback returns its gradients with respect to each parameter as 1D
+            arrays.
+        """
+        uncertainties, jacobians = self.get_uncertainties_and_jacobians(parameters)
+
+        def pullback(vector: ndarray) -> dict[str, ndarray]:
+            return {
+                name: atleast_1d(vector @ jacobian)
+                for name, jacobian in jacobians.items()
+            }
+
+        return uncertainties, pullback
 
 
 class ConstantUncertainty(UncertaintyModel):

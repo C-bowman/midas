@@ -117,6 +117,11 @@ but would require parameters to define the gradient and offset:
             }
             return predictions, jacobians
 
+MIDAS automatically adapts this Jacobian interface into a pullback for posterior
+gradient calculations. Models which can calculate vector-Jacobian products without
+constructing their full Jacobians can instead override ``predictions_and_pullback``;
+see :doc:`vector_jacobian_products` for the interface and an example conversion.
+
 
 
 Specifying likelihood functions

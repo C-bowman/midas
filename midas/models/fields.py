@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from numpy import arange, concatenate, diff, ndarray, zeros, exp
+from numpy import arange, atleast_1d, concatenate, diff, ndarray, zeros, exp
 from scipy.linalg import solve
 from tokamesh.mesh import TriangularMesh
 from midas.parameters import Coordinates, FieldRequest, ParameterVector, Parameters
 from midas.parameters import validate_coordinates
+from midas.types import Pullback
 
 
 class FieldModel(ABC):
@@ -66,6 +67,33 @@ class FieldModel(ABC):
             ``(n_field_values, n_parameter_values)``.
         """
         pass
+
+    def get_values_and_pullback(
+        self, parameters: dict[str, ndarray], field: FieldRequest
+    ) -> tuple[ndarray, Pullback]:
+        """
+        Get field values and a function which propagates a field-value gradient
+        back to the field-model parameters.
+
+        The default implementation constructs the Jacobians using
+        :meth:`get_values_and_jacobian`. Models may override this method to compute
+        vector-Jacobian products directly without constructing full Jacobian arrays.
+
+        :return: \
+            The field values followed by a reusable pullback function. Given the
+            gradient of a scalar quantity with respect to the field values, the
+            pullback returns its gradients with respect to each field-model parameter
+            as 1D arrays.
+        """
+        values, jacobians = self.get_values_and_jacobian(parameters, field)
+
+        def pullback(vector: ndarray) -> dict[str, ndarray]:
+            return {
+                name: atleast_1d(vector @ jacobian)
+                for name, jacobian in jacobians.items()
+            }
+
+        return values, pullback
 
 
 class PiecewiseLinearField(FieldModel):
