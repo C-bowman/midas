@@ -18,10 +18,9 @@ Efficient MAP estimation and MCMC sampling in inference problems with ~20 or mor
 parameters relies heavily on the ability to calculate the derivative of the posterior
 log-probability with respect to those parameters.
 
-Given the Jacobian of a diagnostic model (i.e. the derivatives of the model predictions
-with respect to the model inputs) MIDAS will automatically propagate those derivatives
-through the subsequent steps in calculating the posterior log-probability, so the
-gradient of the posterior log-probability can be calculated analytically.
+Given the Jacobian or a vector-Jacobian product for a diagnostic model, MIDAS will
+automatically propagate derivatives through the subsequent steps in calculating the
+posterior log-probability, so its gradient can be calculated analytically.
 
 This allows MIDAS to tackle large-scale problems with hundreds or thousands of free
 parameters, or to solve smaller problems quickly and routinely.
@@ -57,6 +56,7 @@ but is completely independent of the specific choice of parametrisation for thos
 
    getting_started
    diagnostic
+   vector_jacobian_products
    defining_priors
    choosing_field_models
    build_posterior
