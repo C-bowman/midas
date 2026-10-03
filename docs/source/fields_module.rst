@@ -10,13 +10,13 @@ Built-in field models
 .. autoclass:: midas.models.PiecewiseLinearField
 
 
-.. autoclass:: midas.models.fields.CubicSplineField
+.. autoclass:: midas.models.CubicSplineField
 
 
-.. autoclass:: midas.models.fields.BSplineField
+.. autoclass:: midas.models.BSplineField
 
 
-.. autoclass:: midas.models.fields.ExSplineField
+.. autoclass:: midas.models.ExSplineField
 
 
-.. autoclass:: midas.models.fields.TriangularMeshField
+.. autoclass:: midas.models.TriangularMeshField
