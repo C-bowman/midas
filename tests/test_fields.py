@@ -1,32 +1,45 @@
-from numpy import linspace, allclose
+import pytest
+from numpy import linspace, allclose, log
+from numpy.linalg import solve
 from numpy.random import default_rng
-from midas.models.fields import PiecewiseLinearField
+from midas.models.fields import (
+    PiecewiseLinearField,
+    CubicSplineField,
+    BSplineField,
+    ExSplineField,
+)
 from midas.parameters import FieldRequest
 
 
-def test_piecewise_linear_field():
-    # build a linear field
-    R = linspace(1, 10, 10)
-    linear_field = PiecewiseLinearField(
+@pytest.mark.parametrize(
+    "field_model_class",
+    [PiecewiseLinearField, CubicSplineField, BSplineField, ExSplineField],
+)
+def test_1d_field_interpolation(field_model_class):
+    axis = linspace(0, 1, 32)
+    field_model = field_model_class(
         field_name="emission",
         axis_name="radius",
-        axis=R
+        axis=axis,
     )
 
-    # generate some random positions at which to request field values
+    # Evaluate interpolation at reproducible positions that are not basis knots.
     rng = default_rng(2391)
-    random_positions = rng.uniform(low=1, high=10, size=30)
+    random_positions = rng.uniform(low=axis[0], high=axis[-1], size=100)
+    axis_request = FieldRequest(name="emission", coordinates={"radius": axis})
     request = FieldRequest(name="emission", coordinates={"radius": random_positions})
 
-    # if we use a straight line as the test function, the interpolation should be exact
-    test_line = lambda x: 5.12 * x + 0.74
-    basis_values = test_line(R)
-    interpolation_targets = test_line(random_positions)
-
-    # request the values and check they match the targets
-    interpolated_values = linear_field.get_values(
-        parameters={"emission_linear_basis": basis_values},
-        field=request
+    test_line = lambda x: 0.2 * x + 0.3
+    # Fit each model's parameterisation to the same line at the basis knots.
+    parameter_values = solve(
+        field_model.get_basis(axis_request), test_line(axis)
     )
 
-    assert allclose(interpolated_values, interpolation_targets)
+    interpolated_values = field_model.get_values(
+        parameters={field_model.param_name: parameter_values}, field=request
+    )
+    # ExSplineField exponentiates its spline, so compare in its latent log space.
+    if isinstance(field_model, ExSplineField):
+        interpolated_values = log(interpolated_values)
+
+    assert allclose(interpolated_values, test_line(random_positions), atol=5e-4)

@@ -25,7 +25,7 @@ class ParameterVector:
         assert len(self.name) > 0
 
 
-@dataclass
+@dataclass(frozen=True)
 class FieldRequest:
     """
     A class used to request the values of particular fields which
@@ -47,19 +47,21 @@ class FieldRequest:
         assert isinstance(self.name, str)
         validate_coordinates(coordinates=self.coordinates, error_source="FieldRequest")
         arrays = [A for A in self.coordinates.values()]
-        self.size = arrays[0].size
+        object.__setattr__(self, "size", arrays[0].size)
         # converting coordinate numpy array data to bytes allows us to create
         # a hashable key for the overall coordinate set
-        coord_key = tuple((name, arr.tobytes()) for name, arr in self.coordinates.items())
-        # use a tuple of the field name and coordinate key to create a key for
-        # the field request.
-        self.__hash = hash((self.name, coord_key))
+        coord_key = tuple((name, arr.tobytes(), arr.dtype) for name, arr in self.coordinates.items())
+        # use a tuple of the field name, coordinate key, and array size to
+        # create a key for the field request.
+        object.__setattr__(self, "_hash", hash((self.name, coord_key, self.size)))
 
     def __hash__(self):
-        return self.__hash
+        return self._hash
 
     def __eq__(self, other):
-        return self.__hash == hash(other)
+        if not isinstance(other, FieldRequest):
+            return NotImplemented
+        return self._hash == other._hash
 
 
 class Parameters(tuple):
