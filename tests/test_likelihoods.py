@@ -1,5 +1,5 @@
 import pytest
-from numpy import array, nan
+from numpy import array, inf, nan
 from scipy.optimize import minimize, approx_fprime
 
 from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
@@ -141,8 +141,19 @@ def test_parameterised_uncertainties(likelihood_function):
         }
         test_point = posterior.merge_parameters(test_params)
 
+        parameter_bounds = {
+            name: (-inf, inf) for name in posterior.parameter_set
+        }
+        parameter_bounds.update(
+            {parameter.name: (1e-3, 10.0) for parameter in uncertainty_model.parameters}
+        )
+        bounds = posterior.build_bounds(parameter_bounds)
+
         opt_result = minimize(
-            fun=posterior.cost, x0=test_point, jac=posterior.cost_gradient
+            fun=posterior.cost,
+            x0=test_point,
+            jac=posterior.cost_gradient,
+            bounds=bounds,
         )
 
         num_grad = approx_fprime(
