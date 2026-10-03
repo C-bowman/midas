@@ -14,6 +14,7 @@
 #
 import os
 import sys
+from importlib.metadata import version as distribution_version
 
 sys.path.insert(0, os.path.abspath('../../'))
 sys.path.insert(0, os.path.abspath('./'))
@@ -25,9 +26,9 @@ copyright = '2024, Chris Bowman'
 author = 'Chris Bowman'
 
 # The full version, including alpha/beta/rc tags
-release = "0.4.1"
+release = distribution_version("midas-fusion")
 # Major.minor version
-version = "0.4.1"
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 
