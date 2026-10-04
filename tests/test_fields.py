@@ -1,5 +1,5 @@
 import pytest
-from numpy import linspace, allclose, log
+from numpy import array, linspace, allclose, log
 from numpy.linalg import solve
 from numpy.random import default_rng
 from midas.models.fields import (
@@ -7,6 +7,7 @@ from midas.models.fields import (
     CubicSplineField,
     BSplineField,
     ExSplineField,
+    TriangularMeshField,
 )
 from midas.parameters import FieldRequest
 
@@ -43,3 +44,35 @@ def test_1d_field_interpolation(field_model_class):
         interpolated_values = log(interpolated_values)
 
     assert allclose(interpolated_values, test_line(random_positions), atol=5e-4)
+
+
+def test_triangular_mesh_field_interpolates_plane():
+    mesh_coordinates = {
+        "R": array([1.0, 2.0, 2.0, 1.0, 1.4]),
+        "z": array([0.0, 0.0, 1.0, 1.0, 0.6]),
+    }
+    field_model = TriangularMeshField(
+        field_name="emission",
+        mesh_coordinates=mesh_coordinates,
+        triangle_vertices=array(
+            [[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]]
+        ),
+    )
+    request = FieldRequest(
+        name="emission",
+        coordinates={"R": array([1.05, 1.55]), "z": array([0.05, 0.55])},
+    )
+    plane = lambda R, z: 2 * R - 3 * z + 4
+
+    values = field_model.get_values(
+        parameters={
+            field_model.param_name: plane(
+                mesh_coordinates["R"], mesh_coordinates["z"]
+            )
+        },
+        field=request,
+    )
+
+    assert allclose(
+        values, plane(request.coordinates["R"], request.coordinates["z"])
+    )
