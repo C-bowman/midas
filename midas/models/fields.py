@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from numpy import arange, atleast_1d, concatenate, diff, ndarray, zeros, exp
 from scipy.linalg import solve
+from scipy.sparse import sparray
 from tokamesh.mesh import TriangularMesh
 from midas.parameters import Coordinates, FieldRequest, ParameterVector, Parameters
 from midas.parameters import validate_coordinates
@@ -292,7 +293,7 @@ class TriangularMeshField(FieldModel):
             (self.param_name, self.n_params)
         )
 
-    def get_basis(self, field: FieldRequest) -> ndarray:
+    def get_basis(self, field: FieldRequest) -> sparray:
         if field in self.matrix_cache:
             A = self.matrix_cache[field]
         else:
@@ -311,7 +312,7 @@ class TriangularMeshField(FieldModel):
 
     def get_values_and_jacobian(
         self, parameters: dict[str, ndarray], field: FieldRequest
-    ) -> tuple[ndarray, dict[str, ndarray]]:
+    ) -> tuple[ndarray, dict[str, sparray]]:
         basis = self.get_basis(field)
         return basis @ parameters[self.param_name], {self.param_name: basis}
 
