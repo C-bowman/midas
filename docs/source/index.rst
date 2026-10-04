@@ -68,5 +68,4 @@ but is completely independent of the specific choice of parametrisation for thos
    posterior_module
    normalisation_module
    gradient_validation
-   transforms_module
    gui
