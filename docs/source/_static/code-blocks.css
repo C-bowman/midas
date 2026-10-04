@@ -20,3 +20,11 @@ table.highlighttable td.linenos,
 table.highlighttable td.code {
     background: transparent;
 }
+
+.rst-content code.literal {
+    color: #1769aa;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", Courier, monospace;
+    font-size: 1em;
+    font-weight: 600;
+}
