@@ -64,6 +64,17 @@ class NestedEvaluationPrior(BasePrior):
         return {"outer": -values["outer"]}
 
 
+def test_component_evaluation_methods_are_non_public():
+    diagnostic = build_line_diagnostic()
+    prior = NestedEvaluationPrior(None, None)
+
+    for component in (diagnostic, prior):
+        assert not hasattr(component, "log_probability")
+        assert not hasattr(component, "log_probability_gradient")
+        assert callable(component._log_probability)
+        assert callable(component._log_probability_gradient)
+
+
 def test_nested_evaluation_does_not_replace_outer_values():
     inner = build_posterior([build_line_diagnostic()], [], [])
     inner_theta = inner.merge_parameters({"gradient": 1.5, "y_intercept": 0.2})

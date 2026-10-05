@@ -159,7 +159,7 @@ class Diagnostic:
         self.model_parameters = self.forward_model.parameters
         self.likelihood_parameters = self.likelihood.parameters
 
-    def log_probability(self, context: _EvaluationContext) -> float:
+    def _log_probability(self, context: _EvaluationContext) -> float:
         param_values, field_values = context.get_values(
             parameters=self.model_parameters, fields=self.fields
         )
@@ -170,7 +170,7 @@ class Diagnostic:
         )
         return self.likelihood.log_likelihood(predictions, **likelihood_param_values)
 
-    def log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
+    def _log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
         param_values, field_values, field_pullbacks = (
             context.get_values_and_pullbacks(
                 parameters=self.model_parameters, fields=self.fields
@@ -306,14 +306,14 @@ class BasePrior(ABC):
             propagated separately and added to its direct gradient.
         """
 
-    def log_probability(self, context: _EvaluationContext) -> float:
+    def _log_probability(self, context: _EvaluationContext) -> float:
         param_values, field_values = context.get_values(
             parameters=self.parameters, fields=self.fields
         )
 
         return self.probability(**param_values, **field_values)
 
-    def log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
+    def _log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
         param_values, field_values, field_pullbacks = (
             context.get_values_and_pullbacks(
                 parameters=self.parameters, fields=self.fields
@@ -621,13 +621,13 @@ class Posterior:
     def log_probability(self, theta: ndarray) -> float:
         context = self._context(theta)
         return sum(
-            component.log_probability(context) for component in self.components
+            component._log_probability(context) for component in self.components
         )
 
     def gradient(self, theta: ndarray) -> ndarray:
         context = self._context(theta)
         return sum(
-            component.log_probability_gradient(context)
+            component._log_probability_gradient(context)
             for component in self.components
         )
 
@@ -640,7 +640,7 @@ class Posterior:
     def component_log_probabilities(self, theta: ndarray) -> dict[str, float]:
         context = self._context(theta)
         return {
-            component.name: component.log_probability(context)
+            component.name: component._log_probability(context)
             for component in self.components
         }
 
@@ -648,13 +648,13 @@ class Posterior:
         self, theta: ndarray, component_name: str
     ) -> float:
         context = self._context(theta)
-        return self._components_by_name[component_name].log_probability(context)
+        return self._components_by_name[component_name]._log_probability(context)
 
     def component_gradient(
         self, theta: ndarray, component_name: str
     ) -> ndarray:
         context = self._context(theta)
-        return self._components_by_name[component_name].log_probability_gradient(
+        return self._components_by_name[component_name]._log_probability_gradient(
             context
         )
 
