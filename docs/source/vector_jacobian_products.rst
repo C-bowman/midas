@@ -36,11 +36,11 @@ MIDAS provides a default pullback for each model interface:
      - ``predictions_and_pullback``
      - ``predictions_and_jacobians``
    * - :class:`~midas.models.FieldModel`
-     - ``get_values_and_pullback``
-     - ``get_values_and_jacobian``
+     - ``values_and_pullback``
+     - ``values_and_jacobians``
    * - :class:`~midas.likelihoods.UncertaintyModel`
-     - ``get_uncertainties_and_pullback``
-     - ``get_uncertainties_and_jacobians``
+     - ``uncertainties_and_pullback``
+     - ``uncertainties_and_jacobians``
 
 Existing models therefore work without changes. Their default pullbacks calculate
 ``vector @ jacobian`` for each entry in the Jacobian dictionary. A model should

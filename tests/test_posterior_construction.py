@@ -223,7 +223,7 @@ class CoupledField(FieldModel):
         self.scalar_matrix = scalar_matrix
         self.parameters = Parameters(("shared", 2), ("scale", 1), (self.offset_name, 1))
 
-    def get_values(self, parameters, field):
+    def values(self, parameters, field):
         radius = field.coordinates["radius"]
         basis = column_stack((ones(radius.size), radius))
         return exp(
@@ -232,9 +232,9 @@ class CoupledField(FieldModel):
             + parameters[self.offset_name]
         )
 
-    def get_values_and_jacobian(self, parameters, field):
+    def values_and_jacobians(self, parameters, field):
         radius = field.coordinates["radius"]
-        values = self.get_values(parameters, field)
+        values = self.values(parameters, field)
         basis = column_stack((ones(radius.size), radius))
         scale_jacobian = values * radius**2
         offset_jacobian = values.copy()
@@ -249,13 +249,13 @@ class CoupledField(FieldModel):
 
 
 class PullbackCoupledField(CoupledField):
-    def get_values_and_jacobian(self, parameters, field):
+    def values_and_jacobians(self, parameters, field):
         raise AssertionError("The custom pullback should bypass Jacobian construction")
 
-    def get_values_and_pullback(self, parameters, field):
+    def values_and_pullback(self, parameters, field):
         radius = field.coordinates["radius"]
         basis = column_stack((ones(radius.size), radius))
-        values = self.get_values(parameters, field)
+        values = self.values(parameters, field)
 
         def pullback(vector):
             return {
@@ -419,7 +419,7 @@ def test_shared_parameter_jacobians_are_grouped_by_field():
     assert set(values) == set(jacobians) == {"emission", "temperature"}
     for request in diagnostic.fields:
         model = posterior.field_models[request.name]
-        expected_values, expected_jacobians = model.get_values_and_jacobian(
+        expected_values, expected_jacobians = model.values_and_jacobians(
             context.get_parameter_values(model.parameters), request
         )
         assert_allclose(values[request.name], expected_values)

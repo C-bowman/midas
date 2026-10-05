@@ -60,19 +60,19 @@ class VectorUncertainty(UncertaintyModel):
             [1.5, 0.4],
         ])
 
-    def get_uncertainties(self, parameters):
+    def uncertainties(self, parameters):
         return self.jacobian @ parameters[self.name]
 
-    def get_uncertainties_and_jacobians(self, parameters):
-        return self.get_uncertainties(parameters), {self.name: self.jacobian}
+    def uncertainties_and_jacobians(self, parameters):
+        return self.uncertainties(parameters), {self.name: self.jacobian}
 
 
 class PullbackVectorUncertainty(VectorUncertainty):
-    def get_uncertainties_and_jacobians(self, parameters):
+    def uncertainties_and_jacobians(self, parameters):
         raise AssertionError("The custom pullback should bypass Jacobian construction")
 
-    def get_uncertainties_and_pullback(self, parameters):
-        uncertainties = self.get_uncertainties(parameters)
+    def uncertainties_and_pullback(self, parameters):
+        uncertainties = self.uncertainties(parameters)
 
         def pullback(vector):
             return {self.name: self.jacobian.T @ vector}

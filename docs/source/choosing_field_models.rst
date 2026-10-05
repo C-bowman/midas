@@ -40,7 +40,7 @@ following field model:
                 ParameterVector(name=self.width, size=1),
             )
 
-        def get_values(
+        def values(
             self, parameters: dict[str, ndarray], field: FieldRequest
         ) -> ndarray:
             # retrieve the coordinate values from the given FieldRequest
@@ -50,7 +50,7 @@ following field model:
             field_values = parameters[self.amplitude] * exp(-0.5*z**2)
             return field_values
 
-        def get_values_and_jacobian(
+        def values_and_jacobians(
             self, parameters: dict[str, ndarray], field: FieldRequest
         ) -> tuple[ndarray, dict[str, ndarray]]:
             # retrieve the coordinate values from the given FieldRequest

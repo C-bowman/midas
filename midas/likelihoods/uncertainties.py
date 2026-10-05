@@ -14,7 +14,7 @@ class UncertaintyModel(ABC):
     parameters: Parameters
 
     @abstractmethod
-    def get_uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
+    def uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
         """
         Get the values of the uncertainties.
 
@@ -31,7 +31,7 @@ class UncertaintyModel(ABC):
         pass
 
     @abstractmethod
-    def get_uncertainties_and_jacobians(
+    def uncertainties_and_jacobians(
         self, parameters: dict[str, ndarray]
     ) -> tuple[ndarray, dict[str, ndarray]]:
         """
@@ -56,7 +56,7 @@ class UncertaintyModel(ABC):
         """
         pass
 
-    def get_uncertainties_and_pullback(
+    def uncertainties_and_pullback(
         self, parameters: dict[str, ndarray]
     ) -> tuple[ndarray, Pullback]:
         """
@@ -64,7 +64,7 @@ class UncertaintyModel(ABC):
         gradient back to the uncertainty-model parameters.
 
         The default implementation constructs the Jacobians using
-        :meth:`get_uncertainties_and_jacobians`. Models may override this method to
+        :meth:`uncertainties_and_jacobians`. Models may override this method to
         compute vector-Jacobian products directly without constructing full Jacobian
         arrays.
 
@@ -74,7 +74,7 @@ class UncertaintyModel(ABC):
             pullback returns its gradients with respect to each parameter as 1D
             arrays.
         """
-        uncertainties, jacobians = self.get_uncertainties_and_jacobians(parameters)
+        uncertainties, jacobians = self.uncertainties_and_jacobians(parameters)
 
         def pullback(vector: ndarray) -> dict[str, ndarray]:
             return {
@@ -103,10 +103,10 @@ class ConstantUncertainty(UncertaintyModel):
         self.parameters = Parameters((self.name, 1))
         self.jacobian = {self.name: full((self.size, 1), 1.0)}
 
-    def get_uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
+    def uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
         return full(self.size, parameters[self.name])
 
-    def get_uncertainties_and_jacobians(
+    def uncertainties_and_jacobians(
         self, parameters: dict[str, ndarray]
     ) -> tuple[ndarray, dict[str, ndarray]]:
         return full(self.size, parameters[self.name]), self.jacobian
@@ -136,10 +136,10 @@ class LinearUncertainty(UncertaintyModel):
             self.frac_name: self.y_data[:, None],
         }
 
-    def get_uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
+    def uncertainties(self, parameters: dict[str, ndarray]) -> ndarray:
         return parameters[self.frac_name] * self.y_data + parameters[self.const_name]
 
-    def get_uncertainties_and_jacobians(
+    def uncertainties_and_jacobians(
         self, parameters: dict[str, ndarray]
     ) -> tuple[ndarray, dict[str, ndarray]]:
         uncertainties = (
