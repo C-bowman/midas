@@ -314,7 +314,7 @@ class CoupledPrior(BasePrior):
         self.fields = Fields(*fields)
         self.parameters = Parameters(("shared", 2), ("scale", 1))
 
-    def probability(self, **values):
+    def log_probability(self, **values):
         return -0.5 * sum((value**2).sum() for value in values.values())
 
     def gradients(self, **values):

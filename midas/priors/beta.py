@@ -111,7 +111,7 @@ class BetaPrior(BasePrior):
         self.am1 = self.alpha - 1
         self.bm1 = self.beta - 1
 
-    def probability(self, **kwargs: ndarray) -> float:
+    def log_probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]
         z = self.scale * target_values + self.offset
         invalid = (z <= 0.) | (z >= 1.)

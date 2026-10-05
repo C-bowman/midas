@@ -76,7 +76,7 @@ class ExponentialPrior(BasePrior):
 
         self.lam = 1.0 / self.mean
 
-    def probability(self, **kwargs: ndarray) -> float:
+    def log_probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]
         if (target_values < 0.).any():
             return -1e50

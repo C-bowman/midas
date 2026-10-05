@@ -123,7 +123,7 @@ class LinearGaussianPrior(BasePrior):
 		)
 		self.inv_sigma_sqr = 1.0 / self.sigma**2
 
-	def probability(self, **kwargs: ndarray) -> float:
+	def log_probability(self, **kwargs: ndarray) -> float:
 		residual = self.A @ kwargs[self.target] - self.mean
 		return -0.5 * (residual**2 * self.inv_sigma_sqr).sum()
 

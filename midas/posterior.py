@@ -263,7 +263,7 @@ class BasePrior(ABC):
     name: str
 
     @abstractmethod
-    def probability(self, **parameters_and_fields: ndarray) -> float:
+    def log_probability(self, **parameters_and_fields: ndarray) -> float:
         """
         Calculate the prior log-probability.
 
@@ -311,7 +311,7 @@ class BasePrior(ABC):
             parameters=self.parameters, fields=self.fields
         )
 
-        return self.probability(**param_values, **field_values)
+        return self.log_probability(**param_values, **field_values)
 
     def _log_probability_gradient(self, context: _EvaluationContext) -> ndarray:
         param_values, field_values, field_pullbacks = (

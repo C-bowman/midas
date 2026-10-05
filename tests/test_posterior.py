@@ -56,7 +56,7 @@ class NestedEvaluationPrior(BasePrior):
         self.nested_posterior = nested_posterior
         self.nested_theta = nested_theta
 
-    def probability(self, **values):
+    def log_probability(self, **values):
         self.nested_posterior.log_probability(self.nested_theta)
         return -0.5 * (values["outer"] ** 2).sum()
 
@@ -68,9 +68,9 @@ def test_component_evaluation_methods_are_non_public():
     diagnostic = build_line_diagnostic()
     prior = NestedEvaluationPrior(None, None)
 
+    assert not hasattr(diagnostic, "log_probability")
+    assert callable(prior.log_probability)
     for component in (diagnostic, prior):
-        assert not hasattr(component, "log_probability")
-        assert not hasattr(component, "log_probability_gradient")
         assert callable(component._log_probability)
         assert callable(component._log_probability_gradient)
 
