@@ -11,11 +11,11 @@ used for optimisation to ``validate_gradient``:
 
    from midas.validation import validate_gradient
 
-      report = validate_gradient(
-         posterior=posterior,
-         parameter_bounds=bounds,
-         n_samples=5,
-      )
+   report = validate_gradient(
+      posterior=posterior,
+      parameter_bounds=bounds,
+      n_samples=5,
+   )
    report.print_report()
 
    if not report:

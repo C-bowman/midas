@@ -46,8 +46,8 @@ those instances as arguments to the :ref:`Fields <Fields-ref>` class:
 
     # Request the electron temperature and density field values at these positions
     fields = Fields(
-        FieldRequest(name="T_e", coordinates={"radius": R_ts, "z": z_ts}),
-        FieldRequest(name="n_e", coordinates={"radius": R_ts, "z": z_ts}),
+        FieldRequest(name="T_e", coordinates={"R": R_ts, "z": z_ts}),
+        FieldRequest(name="n_e", coordinates={"R": R_ts, "z": z_ts}),
     )
 
 Specifying required parameters
@@ -163,4 +163,3 @@ we can create an instance of :ref:`Diagnostic <Diagnostic-ref>`:
         likelihood=gaussian_likelihood,
         name="straight_line",
     )
-

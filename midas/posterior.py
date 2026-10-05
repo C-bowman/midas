@@ -512,7 +512,7 @@ class Posterior:
         set names to the associated sub-arrays.
 
         :param parameter_samples: \
-            Samples from the posterior distribution as a 2D of shape
+            Samples from the posterior distribution as a 2D array of shape
             ``(n_samples, n_parameters)``.
 
         :return: \
