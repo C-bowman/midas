@@ -94,7 +94,7 @@ class GaussianPrior(BasePrior):
         self.inv_sigma = 1.0 / self.sigma
         self.inv_sigma_sqr = self.inv_sigma**2
 
-    def probability(self, **kwargs: ndarray) -> float:
+    def log_probability(self, **kwargs: ndarray) -> float:
         target_values = kwargs[self.target]
         z = (target_values - self.mean) * self.inv_sigma
         return -0.5 * (z**2).sum()

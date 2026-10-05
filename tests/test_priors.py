@@ -128,9 +128,9 @@ def test_bounded_support_priors_reject_invalid_values(
         **kwargs,
     )
 
-    assert prior.probability(x=info["values_inside_support"]) > -1e50
+    assert prior.log_probability(x=info["values_inside_support"]) > -1e50
     if "values_outside_support" in info:
-        assert prior.probability(x=info["values_outside_support"]) == -1e50
+        assert prior.log_probability(x=info["values_outside_support"]) == -1e50
 
 
 @pytest.mark.parametrize("prior_class, kwargs, info", prior_test_setup)
@@ -222,7 +222,7 @@ def test_prior_accepts_scalar_numeric_arguments(prior_class, kwargs, info):
         **testing_kwargs,
     )
 
-    assert prior.probability(x=info["values_inside_support"]) > -1e50
+    assert prior.log_probability(x=info["values_inside_support"]) > -1e50
 
 
 @pytest.mark.parametrize(
@@ -245,8 +245,8 @@ def test_prior_operators(prior_class, kwargs, info):
     )
     values = info["values_inside_support"]
 
-    assert sparse_prior.probability(x=values) == pytest.approx(
-        dense_prior.probability(x=values)
+    assert sparse_prior.log_probability(x=values) == pytest.approx(
+        dense_prior.log_probability(x=values)
     )
     assert allclose(
         sparse_prior.gradients(x=values)["x"], dense_prior.gradients(x=values)["x"]
@@ -268,14 +268,14 @@ def test_soft_bounds_prior_penalties(target_type):
         **{target_type: target},
     )
     values = array([-2.0, -1.0, 0.0, 1.0, 3.0])
-    assert prior.probability(x=values) == pytest.approx(-0.625)
+    assert prior.log_probability(x=values) == pytest.approx(-0.625)
     assert allclose(prior.gradients(x=values)["x"], [0.25, 0.0, 0.0, 0.0, -0.5])
     assert allclose(
         prior.gradients(x=values)["x"],
-        approx_fprime(values, lambda values: prior.probability(x=values)),
+        approx_fprime(values, lambda values: prior.log_probability(x=values)),
     )
     interior = linspace(-1.0, 1.0, 5)
-    assert prior.probability(x=interior) == 0.0
+    assert prior.log_probability(x=interior) == 0.0
     assert allclose(prior.gradients(x=interior)["x"], 0.0)
 
 

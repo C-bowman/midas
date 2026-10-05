@@ -112,7 +112,7 @@ class SoftLimitPrior(BasePrior):
 
         self.weight = 1.0 / self.sigma**2
 
-    def probability(self, **kwargs: ndarray) -> float:
+    def log_probability(self, **kwargs: ndarray) -> float:
         v = kwargs[self.target]
         z = self.A @ v - self.limit
         return -0.5 * (self.weight * maximum(z, 0.0) ** 2).sum()
@@ -256,7 +256,7 @@ class SoftBoundsPrior(BasePrior):
         )
         self.weight = 1.0 / self.sigma**2
 
-    def probability(self, **kwargs: ndarray) -> float:
+    def log_probability(self, **kwargs: ndarray) -> float:
         values = self.A @ kwargs[self.target]
         residual = maximum(values - self.upper_limit, 0.0) - maximum(
             self.lower_limit - values, 0.0
@@ -269,5 +269,4 @@ class SoftBoundsPrior(BasePrior):
             self.lower_limit - values, 0.0
         )
         return {self.target: -self.A.T @ (self.weight * residual)}
-
 

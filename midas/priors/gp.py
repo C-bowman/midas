@@ -119,7 +119,7 @@ class GaussianProcessPrior(BasePrior):
             *target_parameters,
         )
 
-    def probability(self, **kwargs: ndarray) -> float:
+    def log_probability(self, **kwargs: ndarray) -> float:
         field_values = kwargs[self.target]
         K = self.cov.build_covariance(kwargs[self.cov_tag])
         mu = self.mean.build_mean(kwargs[self.mean_tag])
@@ -129,7 +129,10 @@ class GaussianProcessPrior(BasePrior):
             v = solve_triangular(L, field_values - mu, lower=True)
             return -0.5 * (v @ v) - log(diagonal(L)).sum()
         except LinAlgError:
-            warn("Cholesky decomposition failure in GaussianProcessPrior.probability")
+            warn(
+                "Cholesky decomposition failure in "
+                "GaussianProcessPrior.log_probability"
+            )
             return -1e50
 
     def gradients(self, **kwargs: ndarray) -> dict[str, ndarray]:
@@ -180,10 +183,10 @@ class GaussianProcessPrior(BasePrior):
         self.logdet = log(diagonal(L)).sum()
 
         # override required abstract methods with fixed-hyperparameter variants
-        self.probability = self.__fixed_probability
+        self.log_probability = self.__fixed_log_probability
         self.gradients = self.__fixed_gradients
 
-    def __fixed_probability(self, **kwargs: ndarray) -> float:
+    def __fixed_log_probability(self, **kwargs: ndarray) -> float:
         dy = kwargs[self.target] - self.mu
         z = dy @ (self.iK @ dy)
         return -0.5 * z - self.logdet
