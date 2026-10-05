@@ -19,7 +19,9 @@ temperature field at specific positions, we could do the following:
 
     # Request the electron temperature at each edge of the plasma
     boundary_radius = array([0.35, 1.45])
-    boundary_temperature = FieldRequest(name="te", coordinates={"radius": boundary_radius})
+    boundary_temperature = FieldRequest(
+        name="te", coordinates={"radius": boundary_radius}
+    )
 
     # Place a Gaussian prior on the requested temperature values
     te_boundary_prior = GaussianPrior(

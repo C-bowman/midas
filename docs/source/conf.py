@@ -47,7 +47,7 @@ extensions = [
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 html_static_path = ['_static']
-html_css_files = ['gradient-report.css']
+html_css_files = ['gradient-report.css', 'code-blocks.css']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -68,10 +68,10 @@ language = 'en'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = ['transforms_module.rst']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
+pygments_style = "monokai"
 
 
 # -- Options for HTML output -------------------------------------------------

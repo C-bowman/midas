@@ -36,7 +36,7 @@ class UncertaintyModel(ABC):
     ) -> tuple[ndarray, dict[str, ndarray]]:
         """
         Get the values of the uncertainties, and the Jacobians of the uncertainties
-        values with respect to the given parameters values.
+        with respect to the given parameter values.
 
         :param parameters: \
             The parameter values requested via the ``ParameterVector`` objects stored

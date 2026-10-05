@@ -40,7 +40,7 @@ Analysis in MIDAS is built from three types of models:
  - Likelihood functions which model the uncertainties on measured data.
  - Plasma field models which give a parametrised description of the plasma state.
 
-Each of these model types have interfaces defined by an associated abstract base-class,
+Each of these model types has an interface defined by an associated abstract base-class,
 which allows them to communicate with the framework. This abstraction means that
 models can be easily swapped in and out of the analysis without requiring code changes.
 
@@ -68,5 +68,4 @@ but is completely independent of the specific choice of parametrisation for thos
    posterior_module
    normalisation_module
    gradient_validation
-   transforms_module
    gui

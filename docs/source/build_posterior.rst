@@ -17,7 +17,7 @@ the diagnostics, priors and field models we wish to include in the analysis:
     from midas import build_posterior
 
     # collect all the diagnostics we want to include in the analysis
-    diagnostics = [brem_likelihood, pressure_likelihood, interferometer_likelihood]
+    diagnostics = [brem_diagnostic, pressure_diagnostic, interferometer_diagnostic]
 
     # collect all the priors we want to include in the analysis
     priors = [te_gp, ne_gp, te_boundary_prior, ne_boundary_prior]

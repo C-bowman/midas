@@ -45,7 +45,7 @@ class FieldModel(ABC):
     ) -> tuple[ndarray, dict[str, ndarray]]:
         """
         Get the values of the field at a set of given coordinates, and the Jacobian
-        of those fields values with respect to the given parameters values.
+        of those field values with respect to the given parameter values.
 
         :param parameters: \
             The parameter values requested via the ``ParameterVector`` objects stored
