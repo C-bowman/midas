@@ -36,7 +36,7 @@ def test_1d_field_interpolation(field_model_class):
         field_model.get_basis(axis_request), test_line(axis)
     )
 
-    interpolated_values = field_model.get_values(
+    interpolated_values = field_model.values(
         parameters={field_model.param_name: parameter_values}, field=request
     )
     # ExSplineField exponentiates its spline, so compare in its latent log space.
@@ -64,7 +64,7 @@ def test_triangular_mesh_field_interpolates_plane():
     )
     plane = lambda R, z: 2 * R - 3 * z + 4
 
-    values = field_model.get_values(
+    values = field_model.values(
         parameters={
             field_model.param_name: plane(
                 mesh_coordinates["R"], mesh_coordinates["z"]

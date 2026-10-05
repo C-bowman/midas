@@ -36,14 +36,14 @@ class _EvaluationContext:
         if field not in self._field_values:
             field_model = self.posterior.field_models[field.name]
             field_params = self.get_parameter_values(field_model.parameters)
-            self._field_values[field] = field_model.get_values(field_params, field)
+            self._field_values[field] = field_model.values(field_params, field)
         return self._field_values[field]
 
     def get_field_values_and_jacobians(self, field):
         if field not in self._field_jacobians:
             field_model = self.posterior.field_models[field.name]
             field_params = self.get_parameter_values(field_model.parameters)
-            values, jacobians = field_model.get_values_and_jacobian(
+            values, jacobians = field_model.values_and_jacobians(
                 field_params, field
             )
             self._field_values[field] = values
@@ -56,7 +56,7 @@ class _EvaluationContext:
         if field not in self._field_pullbacks:
             field_model = self.posterior.field_models[field.name]
             field_params = self.get_parameter_values(field_model.parameters)
-            values, pullback = field_model.get_values_and_pullback(
+            values, pullback = field_model.values_and_pullback(
                 field_params, field
             )
             self._field_values[field] = values
@@ -694,7 +694,7 @@ class Posterior:
 
         field_model = self.field_models[field_request.name]
         context = self._context(theta)
-        return field_model.get_values(
+        return field_model.values(
             context.get_parameter_values(field_model.parameters), field_request
         )
 
@@ -711,7 +711,7 @@ class Posterior:
         field_values = zeros([parameter_samples.shape[0], field_request.size])
         for index, theta in enumerate(parameter_samples):
             context = self._context(theta)
-            field_values[index, :] = field_model.get_values(
+            field_values[index, :] = field_model.values(
                 context.get_parameter_values(field_model.parameters), field_request
             )
         return field_values

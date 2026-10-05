@@ -49,5 +49,4 @@ Abstract base classes
 
 
 .. autoclass:: midas.likelihoods.UncertaintyModel
-   :members: get_uncertainties, get_uncertainties_and_jacobians, get_uncertainties_and_pullback
-
+   :members: uncertainties, uncertainties_and_jacobians, uncertainties_and_pullback

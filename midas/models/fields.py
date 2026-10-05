@@ -17,7 +17,7 @@ class FieldModel(ABC):
     parameters: Parameters
 
     @abstractmethod
-    def get_values(
+    def values(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> ndarray:
         """
@@ -40,7 +40,7 @@ class FieldModel(ABC):
         pass
 
     @abstractmethod
-    def get_values_and_jacobian(
+    def values_and_jacobians(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> tuple[ndarray, dict[str, ndarray]]:
         """
@@ -69,7 +69,7 @@ class FieldModel(ABC):
         """
         pass
 
-    def get_values_and_pullback(
+    def values_and_pullback(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> tuple[ndarray, Pullback]:
         """
@@ -77,7 +77,7 @@ class FieldModel(ABC):
         back to the field-model parameters.
 
         The default implementation constructs the Jacobians using
-        :meth:`get_values_and_jacobian`. Models may override this method to compute
+        :meth:`values_and_jacobians`. Models may override this method to compute
         vector-Jacobian products directly without constructing full Jacobian arrays.
 
         :return: \
@@ -86,7 +86,7 @@ class FieldModel(ABC):
             pullback returns its gradients with respect to each field-model parameter
             as 1D arrays.
         """
-        values, jacobians = self.get_values_and_jacobian(parameters, field)
+        values, jacobians = self.values_and_jacobians(parameters, field)
 
         def pullback(vector: ndarray) -> dict[str, ndarray]:
             return {
@@ -139,13 +139,13 @@ class PiecewiseLinearField(FieldModel):
             self.matrix_cache[field] = A
         return A
 
-    def get_values(
+    def values(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> ndarray:
         basis = self.get_basis(field)
         return basis @ parameters[self.param_name]
 
-    def get_values_and_jacobian(
+    def values_and_jacobians(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> tuple[ndarray, dict[str, ndarray]]:
         basis = self.get_basis(field)
@@ -232,13 +232,13 @@ class ExSplineField(PiecewiseLinearField):
             ParameterVector(name=self.param_name, size=self.n_params)
         )
 
-    def get_values(
+    def values(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> ndarray:
         basis = self.get_basis(field)
         return exp(basis @ parameters[self.param_name])
 
-    def get_values_and_jacobian(
+    def values_and_jacobians(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> tuple[ndarray, dict[str, ndarray]]:
         basis = self.get_basis(field)
@@ -304,13 +304,13 @@ class TriangularMeshField(FieldModel):
             self.matrix_cache[field] = A
         return A
 
-    def get_values(
+    def values(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> ndarray:
         basis = self.get_basis(field)
         return basis @ parameters[self.param_name]
 
-    def get_values_and_jacobian(
+    def values_and_jacobians(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> tuple[ndarray, dict[str, sparray]]:
         basis = self.get_basis(field)

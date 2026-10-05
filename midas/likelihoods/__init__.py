@@ -48,7 +48,7 @@ class GaussianLikelihood(LikelihoodFunction):
     def parameterised_log_likelihood(
         self, predictions: ndarray, **parameters: ndarray
     ) -> float:
-        sigma = self.uncertainty_model.get_uncertainties(parameters)
+        sigma = self.uncertainty_model.uncertainties(parameters)
         z = (self.y - predictions) / sigma
 
         return -0.5 * (z**2).sum() + self.normalisation - log(sigma).sum()
@@ -56,7 +56,7 @@ class GaussianLikelihood(LikelihoodFunction):
     def parameterised_derivatives(
         self, predictions: ndarray, **parameters: ndarray
     ) -> tuple[ndarray, dict[str, ndarray]]:
-        sigma, pullback = self.uncertainty_model.get_uncertainties_and_pullback(
+        sigma, pullback = self.uncertainty_model.uncertainties_and_pullback(
             parameters
         )
         z = (self.y - predictions) / sigma
@@ -119,7 +119,7 @@ class LogisticLikelihood(LikelihoodFunction):
     def parameterised_log_likelihood(
         self, predictions: ndarray, **parameters: ndarray
     ) -> float:
-        sigma = self.uncertainty_model.get_uncertainties(parameters)
+        sigma = self.uncertainty_model.uncertainties(parameters)
         scale = sigma * self.scale_fac
         z = (self.y - predictions) / scale
 
@@ -128,7 +128,7 @@ class LogisticLikelihood(LikelihoodFunction):
     def parameterised_derivatives(
         self, predictions: ndarray, **parameters: ndarray
     ) -> tuple[ndarray, dict[str, ndarray]]:
-        sigma, pullback = self.uncertainty_model.get_uncertainties_and_pullback(
+        sigma, pullback = self.uncertainty_model.uncertainties_and_pullback(
             parameters
         )
         scale = sigma * self.scale_fac
@@ -195,7 +195,7 @@ class CauchyLikelihood(LikelihoodFunction):
     def parameterised_log_likelihood(
         self, predictions: ndarray, **parameters: ndarray
     ) -> float:
-        gamma = self.uncertainty_model.get_uncertainties(parameters)
+        gamma = self.uncertainty_model.uncertainties(parameters)
         z = (self.y - predictions) / gamma
 
         return -log(1 + z**2).sum() + self.normalisation - log(gamma).sum()
@@ -203,7 +203,7 @@ class CauchyLikelihood(LikelihoodFunction):
     def parameterised_derivatives(
         self, predictions: ndarray, **parameters: ndarray
     ) -> tuple[ndarray, dict[str, ndarray]]:
-        gamma, pullback = self.uncertainty_model.get_uncertainties_and_pullback(
+        gamma, pullback = self.uncertainty_model.uncertainties_and_pullback(
             parameters
         )
         inv_gamma = 1 / gamma

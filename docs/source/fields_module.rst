@@ -4,7 +4,7 @@ Built-in field models
 .. _FieldModel-ref:
 
 .. autoclass:: midas.models.FieldModel
-   :members: get_values, get_values_and_jacobian, get_values_and_pullback
+   :members: values, values_and_jacobians, values_and_pullback
 
 
 .. autoclass:: midas.models.PiecewiseLinearField
