@@ -39,7 +39,6 @@ class FieldModel(ABC):
         """
         pass
 
-    @abstractmethod
     def values_and_jacobians(
         self, parameters: dict[str, ndarray], field: FieldRequest
     ) -> tuple[ndarray, dict[str, ndarray]]:
@@ -66,8 +65,15 @@ class FieldModel(ABC):
             to its corresponding Jacobian. A 1D array may be returned for a scalar
             parameter. For parameter vectors, the Jacobian must have shape
             ``(n_field_values, n_parameter_values)``.
+
+        :raises NotImplementedError: \
+            If the model does not implement Jacobian calculations. Models which
+            override :meth:`values_and_pullback` do not need to implement this
+            method.
         """
-        pass
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement values_and_jacobians"
+        )
 
     def values_and_pullback(
         self, parameters: dict[str, ndarray], field: FieldRequest

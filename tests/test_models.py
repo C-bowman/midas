@@ -1,9 +1,11 @@
 from numpy import array, ndarray
 from numpy.testing import assert_allclose
 from scipy.optimize import minimize, approx_fprime
-from midas.likelihoods import GaussianLikelihood
-from midas.models import DiagnosticModel
-from midas import Diagnostic, Fields, Parameters, build_posterior
+import pytest
+
+from midas.likelihoods import GaussianLikelihood, UncertaintyModel
+from midas.models import DiagnosticModel, FieldModel
+from midas import Diagnostic, FieldRequest, Fields, Parameters, build_posterior
 
 from utilities import StraightLine
 
@@ -34,9 +36,6 @@ class CustomPullbackModel(DiagnosticModel):
     def predictions(self, **values: ndarray) -> ndarray:
         return self.matrix @ values["coefficients"]
 
-    def predictions_and_jacobians(self, **values: ndarray):
-        raise AssertionError("The custom pullback should bypass Jacobian construction")
-
     def predictions_and_pullback(self, **values: ndarray):
         predictions = self.predictions(**values)
 
@@ -44,6 +43,48 @@ class CustomPullbackModel(DiagnosticModel):
             return {"coefficients": self.matrix.T @ vector}
 
         return predictions, pullback
+
+
+class PullbackOnlyField(FieldModel):
+    def __init__(self):
+        self.name = "field"
+        self.parameters = Parameters()
+
+    def values(self, parameters, field):
+        return array([1.0])
+
+    def values_and_pullback(self, parameters, field):
+        return self.values(parameters, field), lambda vector: {}
+
+
+class PullbackOnlyUncertainty(UncertaintyModel):
+    def __init__(self):
+        self.parameters = Parameters()
+
+    def uncertainties(self, parameters):
+        return array([1.0])
+
+    def uncertainties_and_pullback(self, parameters):
+        return self.uncertainties(parameters), lambda vector: {}
+
+
+def test_jacobian_methods_are_optional():
+    assert DiagnosticModel.__abstractmethods__ == frozenset({"predictions"})
+    assert FieldModel.__abstractmethods__ == frozenset({"values"})
+    assert UncertaintyModel.__abstractmethods__ == frozenset({"uncertainties"})
+
+    diagnostic = CustomPullbackModel(array([[1.0]]))
+    field = PullbackOnlyField()
+    uncertainty = PullbackOnlyUncertainty()
+
+    with pytest.raises(NotImplementedError, match="predictions_and_jacobians"):
+        diagnostic.predictions_and_jacobians(coefficients=array([1.0]))
+    with pytest.raises(NotImplementedError, match="values_and_jacobians"):
+        field.values_and_jacobians(
+            {}, FieldRequest("field", {"x": array([0.0])})
+        )
+    with pytest.raises(NotImplementedError, match="uncertainties_and_jacobians"):
+        uncertainty.uncertainties_and_jacobians({})
 
 
 def test_posterior_uses_custom_diagnostic_pullback():

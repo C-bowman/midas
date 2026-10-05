@@ -30,7 +30,6 @@ class UncertaintyModel(ABC):
         """
         pass
 
-    @abstractmethod
     def uncertainties_and_jacobians(
         self, parameters: dict[str, ndarray]
     ) -> tuple[ndarray, dict[str, ndarray]]:
@@ -53,8 +52,16 @@ class UncertaintyModel(ABC):
             to its corresponding Jacobian. A 1D array may be returned for a scalar
             parameter. For parameter vectors, the Jacobian must have shape
             ``(n_uncertainties, n_parameter_values)``.
+
+        :raises NotImplementedError: \
+            If the model does not implement Jacobian calculations. Models which
+            override :meth:`uncertainties_and_pullback` do not need to implement this
+            method.
         """
-        pass
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement "
+            "uncertainties_and_jacobians"
+        )
 
     def uncertainties_and_pullback(
         self, parameters: dict[str, ndarray]

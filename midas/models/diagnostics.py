@@ -30,7 +30,6 @@ class DiagnosticModel(ABC):
         """
         pass
 
-    @abstractmethod
     def predictions_and_jacobians(
         self, **parameters_and_fields: ndarray
     ) -> tuple[ndarray, dict[str, ndarray]]:
@@ -61,7 +60,15 @@ class DiagnosticModel(ABC):
             These must be partial derivatives with all other inputs held fixed.
             Contributions through fields that depend on a requested parameter are
             propagated separately and added to its direct contribution.
+
+        :raises NotImplementedError: \
+            If the model does not implement Jacobian calculations. Models which
+            override :meth:`predictions_and_pullback` do not need to implement this
+            method.
         """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement predictions_and_jacobians"
+        )
 
     def predictions_and_pullback(
         self, **parameters_and_fields: ndarray
