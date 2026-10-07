@@ -115,6 +115,19 @@ def test_split_gaussian_matches_gaussian_when_uncertainties_are_equal():
     )
 
 
+def test_split_gaussian_uses_errors_facing_predictions():
+    likelihood = SplitGaussianLikelihood(
+        y_data=array([0.0, 0.0]),
+        sigma_lower=array([1.0, 1.0]),
+        sigma_upper=array([4.0, 4.0]),
+    )
+    predictions = array([-1.0, 1.0])
+
+    prediction_derivative, _ = likelihood.derivatives(predictions)
+
+    assert allclose(prediction_derivative, array([1.0, -1 / 16]))
+
+
 @pytest.mark.parametrize("model_is_lower", [True, False])
 def test_split_gaussian_rejects_mixed_uncertainty_types(model_is_lower):
     y = array([1.0, 3.0, 4.0])

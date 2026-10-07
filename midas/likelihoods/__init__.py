@@ -80,8 +80,8 @@ class SplitGaussianLikelihood(LikelihoodFunction):
     """
     A class for constructing a split Gaussian likelihood function.
 
-    The distribution uses ``sigma_lower`` when a measured value is below its
-    prediction, and ``sigma_upper`` when it is above its prediction. The two
+    The distribution uses ``sigma_lower`` when a prediction is below its measured
+    value, and ``sigma_upper`` when it is above its measured value. The two
     uncertainties must either both be arrays or both be uncertainty models.
 
     :param y_data: \
@@ -180,7 +180,7 @@ class SplitGaussianLikelihood(LikelihoodFunction):
     ) -> float:
         sigma_lower, sigma_upper = self._uncertainties(parameters)
         residual = self.y - predictions
-        sigma = where(residual < 0, sigma_lower, sigma_upper)
+        sigma = where(residual > 0, sigma_lower, sigma_upper)
         z = residual / sigma
 
         return (
@@ -200,7 +200,7 @@ class SplitGaussianLikelihood(LikelihoodFunction):
         )
 
         residual = self.y - predictions
-        lower_side = residual < 0
+        lower_side = residual > 0
         sigma = where(lower_side, sigma_lower, sigma_upper)
         inv_sigma_sum = 1 / (sigma_lower + sigma_upper)
 
@@ -225,7 +225,7 @@ class SplitGaussianLikelihood(LikelihoodFunction):
     def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
         residual = self.y - predictions
         inv_sigma_sqr = where(
-            residual < 0, self.inv_sigma_lower_sqr, self.inv_sigma_upper_sqr
+            residual > 0, self.inv_sigma_lower_sqr, self.inv_sigma_upper_sqr
         )
         return -0.5 * (residual**2 * inv_sigma_sqr).sum() + self.normalisation
 
@@ -234,7 +234,7 @@ class SplitGaussianLikelihood(LikelihoodFunction):
     ) -> tuple[ndarray, dict[str, ndarray]]:
         residual = self.y - predictions
         inv_sigma_sqr = where(
-            residual < 0, self.inv_sigma_lower_sqr, self.inv_sigma_upper_sqr
+            residual > 0, self.inv_sigma_lower_sqr, self.inv_sigma_upper_sqr
         )
         return residual * inv_sigma_sqr, self.empty_derivatives
 
