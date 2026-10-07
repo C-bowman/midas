@@ -1,4 +1,4 @@
-from numpy import ndarray, log, exp, logaddexp, sqrt, pi, isfinite
+from numpy import ndarray, log, exp, logaddexp, sqrt, pi, isfinite, where
 from midas.posterior import LikelihoodFunction
 from midas.parameters import Parameters
 from midas.likelihoods.uncertainties import UncertaintyModel
@@ -74,6 +74,169 @@ class GaussianLikelihood(LikelihoodFunction):
         self, predictions: ndarray, **parameters: ndarray
     ) -> tuple[ndarray, dict[str, ndarray]]:
         return (self.y - predictions) * self.inv_sigma_sqr, self.empty_derivatives
+
+
+class SplitGaussianLikelihood(LikelihoodFunction):
+    """
+    A class for constructing a split Gaussian likelihood function.
+
+    The distribution uses ``sigma_lower`` when a measured value is below its
+    prediction, and ``sigma_upper`` when it is above its prediction. The two
+    uncertainties must either both be arrays or both be uncertainty models.
+
+    :param y_data: \
+        The measured data as a 1D array.
+
+    :param sigma_lower: \
+        The standard deviations for downward fluctuations in ``y_data`` as a 1D array.
+        Alternatively, a model for these uncertainties (inheriting from the
+        ``UncertaintyModel`` base-class) can be provided.
+
+    :param sigma_upper: \
+        The standard deviations for upward fluctuations in ``y_data`` as a 1D array.
+        Alternatively, a model for these uncertainties (inheriting from the
+        ``UncertaintyModel`` base-class) can be provided.
+    """
+
+    def __init__(
+        self,
+        y_data: ndarray,
+        sigma_lower: ndarray | UncertaintyModel,
+        sigma_upper: ndarray | UncertaintyModel,
+    ):
+        self.y = y_data
+
+        validate_likelihood_data(
+            values=y_data,
+            uncertainties=sigma_lower,
+            likelihood_name=self.__class__.__name__,
+        )
+        validate_likelihood_data(
+            values=y_data,
+            uncertainties=sigma_upper,
+            likelihood_name=self.__class__.__name__,
+        )
+
+        self.n_data = self.y.size
+        lower_is_model = isinstance(sigma_lower, UncertaintyModel)
+        upper_is_model = isinstance(sigma_upper, UncertaintyModel)
+        if lower_is_model != upper_is_model:
+            raise ValueError(
+                f"""\n
+                \r[ {self.__class__.__name__} error ]
+                \r>> The lower and upper uncertainties must either both be arrays
+                \r>> or both be instances of the UncertaintyModel class.
+                """
+            )
+
+        if lower_is_model and upper_is_model:
+            self.lower_uncertainty_model = sigma_lower
+            self.upper_uncertainty_model = sigma_upper
+            parameters_by_name = {}
+            for model in (
+                self.lower_uncertainty_model,
+                self.upper_uncertainty_model,
+            ):
+                for parameter in model.parameters:
+                    existing = parameters_by_name.get(parameter.name)
+                    if existing is not None and existing.size != parameter.size:
+                        raise ValueError(
+                            f"""\n
+                            \r[ {self.__class__.__name__} error ]
+                            \r>> The lower and upper uncertainty models contain
+                            \r>> parameters which share the name '{parameter.name}'
+                            \r>> but have different sizes.
+                            """
+                        )
+                    parameters_by_name[parameter.name] = parameter
+
+            self.parameters = Parameters(*parameters_by_name.values())
+            self.normalisation = 0.5 * log(2 / pi) * self.n_data
+            self.log_likelihood = self.parameterised_log_likelihood
+            self.derivatives = self.parameterised_derivatives
+
+        else:
+            self.sigma_lower = sigma_lower
+            self.sigma_upper = sigma_upper
+            sigma_sum = self.sigma_lower + self.sigma_upper
+            self.inv_sigma_lower_sqr = 1.0 / self.sigma_lower**2
+            self.inv_sigma_upper_sqr = 1.0 / self.sigma_upper**2
+            self.normalisation = (
+                0.5 * log(2 / pi) * self.n_data - log(sigma_sum).sum()
+            )
+            self.parameters = Parameters()
+            self.empty_derivatives = {}
+
+    def _uncertainties(
+        self, parameters: dict[str, ndarray]
+    ) -> tuple[ndarray, ndarray]:
+        return (
+            self.lower_uncertainty_model.uncertainties(parameters),
+            self.upper_uncertainty_model.uncertainties(parameters),
+        )
+
+    def parameterised_log_likelihood(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> float:
+        sigma_lower, sigma_upper = self._uncertainties(parameters)
+        residual = self.y - predictions
+        sigma = where(residual < 0, sigma_lower, sigma_upper)
+        z = residual / sigma
+
+        return (
+            -0.5 * (z**2).sum()
+            + self.normalisation
+            - log(sigma_lower + sigma_upper).sum()
+        )
+
+    def parameterised_derivatives(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> tuple[ndarray, dict[str, ndarray]]:
+        sigma_lower, lower_pullback = (
+            self.lower_uncertainty_model.uncertainties_and_pullback(parameters)
+        )
+        sigma_upper, upper_pullback = (
+            self.upper_uncertainty_model.uncertainties_and_pullback(parameters)
+        )
+
+        residual = self.y - predictions
+        lower_side = residual < 0
+        sigma = where(lower_side, sigma_lower, sigma_upper)
+        inv_sigma_sum = 1 / (sigma_lower + sigma_upper)
+
+        prediction_derivative = residual / sigma**2
+        dL_ds_lower = (
+            where(lower_side, residual**2 / sigma_lower**3, 0.0)
+            - inv_sigma_sum
+        )
+        dL_ds_upper = (
+            where(lower_side, 0.0, residual**2 / sigma_upper**3)
+            - inv_sigma_sum
+        )
+        parameter_derivatives = lower_pullback(dL_ds_lower)
+        for name, derivative in upper_pullback(dL_ds_upper).items():
+            if name in parameter_derivatives:
+                parameter_derivatives[name] += derivative
+            else:
+                parameter_derivatives[name] = derivative
+
+        return prediction_derivative, parameter_derivatives
+
+    def log_likelihood(self, predictions: ndarray, **parameters: ndarray) -> float:
+        residual = self.y - predictions
+        inv_sigma_sqr = where(
+            residual < 0, self.inv_sigma_lower_sqr, self.inv_sigma_upper_sqr
+        )
+        return -0.5 * (residual**2 * inv_sigma_sqr).sum() + self.normalisation
+
+    def derivatives(
+        self, predictions: ndarray, **parameters: ndarray
+    ) -> tuple[ndarray, dict[str, ndarray]]:
+        residual = self.y - predictions
+        inv_sigma_sqr = where(
+            residual < 0, self.inv_sigma_lower_sqr, self.inv_sigma_upper_sqr
+        )
+        return residual * inv_sigma_sqr, self.empty_derivatives
 
 
 class LogisticLikelihood(LikelihoodFunction):
