@@ -26,6 +26,9 @@ encapsulate the measured data and their estimated uncertainties.
 .. autoclass:: midas.likelihoods.CauchyLikelihood
 
 
+.. autoclass:: midas.likelihoods.SplitGaussianLikelihood
+
+
 Uncertainty models
 ------------------
 

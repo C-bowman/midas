@@ -1,58 +1,134 @@
 import pytest
-from numpy import array, inf, nan
-from scipy.optimize import minimize, approx_fprime
+from numpy import allclose, array, nan
+from scipy.optimize import approx_fprime
 
-from midas.likelihoods import GaussianLikelihood, LogisticLikelihood, CauchyLikelihood
+from midas.likelihoods import (
+    GaussianLikelihood,
+    SplitGaussianLikelihood,
+    LogisticLikelihood,
+    CauchyLikelihood,
+)
 from midas.likelihoods import ConstantUncertainty, LinearUncertainty, UncertaintyModel
 from midas import Diagnostic, Parameters, build_posterior
 
 from utilities import StraightLine
 
 
+likelihood_test_setup = [
+    (
+        GaussianLikelihood,
+        {"sigma": array([5.0, 5.0, 3.0])},
+    ),
+    (
+        SplitGaussianLikelihood,
+        {
+            "sigma_lower": array([5.0, 5.0, 3.0]),
+            "sigma_upper": array([6.0, 6.0, 4.0]),
+        },
+    ),
+    (
+        LogisticLikelihood,
+        {"sigma": array([5.0, 5.0, 3.0])},
+    ),
+    (
+        CauchyLikelihood,
+        {"gamma": array([5.0, 5.0, 3.0])},
+    ),
+]
+
+
+def constant_uncertainty_setup(y_data, index):
+    parameter_name = f"constant_error_{index}"
+    model = ConstantUncertainty(y_data.size, parameter_name)
+    return model, {parameter_name: 0.5 + 0.1 * index}
+
+
+def linear_uncertainty_setup(y_data, index):
+    parameter_prefix = f"error_{index}"
+    model = LinearUncertainty(y_data, parameter_prefix)
+    parameters = {
+        f"{parameter_prefix}_constant_error": 0.3,
+        f"{parameter_prefix}_fractional_error": 0.05 + 0.01 * index,
+    }
+    return model, parameters
+
+
+uncertainty_model_test_setup = [
+    constant_uncertainty_setup,
+    linear_uncertainty_setup,
+]
+
+
 @pytest.mark.parametrize(
-    "likelihood",
-    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
+    "likelihood_class, kwargs", likelihood_test_setup
 )
-def test_likelihood_validation(likelihood):
+def test_likelihood_validation(likelihood_class, kwargs):
     y = array([1.0, 3.0, 4.0])
-    sig = array([5.0, 5.0, 3.0])
 
-    # check the type validation
-    with pytest.raises(TypeError):
-        likelihood(y, [s for s in sig])
+    for argument in kwargs:
+        invalid = kwargs.copy()
+        invalid[argument] = invalid[argument].tolist()
+        with pytest.raises(TypeError):
+            likelihood_class(y_data=y, **invalid)
 
-    # check array shape validation
+        invalid[argument] = kwargs[argument].reshape([3, 1])
+        with pytest.raises(ValueError):
+            likelihood_class(y_data=y, **invalid)
+
     with pytest.raises(ValueError):
-        likelihood(y[:-1], sig)
+        likelihood_class(y_data=y[:-1], **kwargs)
 
+    invalid_y = y.copy()
+    invalid_y[1] = nan
     with pytest.raises(ValueError):
-        likelihood(y, sig.reshape([3, 1]))
-
-    # check finite values validation
-    y[1] = nan
-    with pytest.raises(ValueError):
-        likelihood(y, sig)
+        likelihood_class(y_data=invalid_y, **kwargs)
 
 
 @pytest.mark.parametrize(
-    "likelihood",
-    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
+    "likelihood_class, kwargs", likelihood_test_setup
 )
-def test_likelihoods_predictions_gradient(likelihood):
+def test_likelihoods_predictions_gradient(likelihood_class, kwargs):
     test_values = array([3.58, 2.11, 7.89])
     y = array([1.0, 3.0, 4.0])
-    sig = array([5.0, 5.0, 3.0])
-    func = likelihood(y, sig)
+    likelihood = likelihood_class(y_data=y, **kwargs)
 
-    analytic_grad, _ = func.derivatives(predictions=test_values)
-    numeric_grad = approx_fprime(f=func.log_likelihood, xk=test_values)
+    analytic_grad, _ = likelihood.derivatives(predictions=test_values)
+    numeric_grad = approx_fprime(f=likelihood.log_likelihood, xk=test_values)
     max_abs_err = abs(analytic_grad - numeric_grad).max()
     assert max_abs_err < 1e-6
 
 
+def test_split_gaussian_matches_gaussian_when_uncertainties_are_equal():
+    y = array([1.0, 3.0, 4.0])
+    sigma = array([0.5, 1.5, 2.0])
+    predictions = array([2.0, 3.0, 2.5])
+    gaussian = GaussianLikelihood(y, sigma)
+    split_gaussian = SplitGaussianLikelihood(y, sigma, sigma)
+
+    assert allclose(
+        split_gaussian.log_likelihood(predictions),
+        gaussian.log_likelihood(predictions),
+    )
+    assert allclose(
+        split_gaussian.derivatives(predictions)[0],
+        gaussian.derivatives(predictions)[0],
+    )
+
+
+@pytest.mark.parametrize("model_is_lower", [True, False])
+def test_split_gaussian_rejects_mixed_uncertainty_types(model_is_lower):
+    y = array([1.0, 3.0, 4.0])
+    fixed = array([0.5, 1.5, 2.0])
+    model = ConstantUncertainty(y.size, "error")
+    sigma_lower, sigma_upper = (model, fixed) if model_is_lower else (fixed, model)
+
+    with pytest.raises(ValueError, match="must either both be arrays"):
+        SplitGaussianLikelihood(y, sigma_lower, sigma_upper)
+
+
 class VectorUncertainty(UncertaintyModel):
-    def __init__(self):
-        self.name = "vector_uncertainty"
+    def __init__(self, name="vector_uncertainty"):
+        self.name = name
         self.parameters = Parameters((self.name, 2))
         self.jacobian = array([
             [1.0, 0.2],
@@ -81,12 +157,11 @@ class PullbackVectorUncertainty(VectorUncertainty):
 
 
 @pytest.mark.parametrize(
-    "likelihood_function",
-    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
+    "likelihood_class, kwargs", likelihood_test_setup
 )
 @pytest.mark.parametrize("custom_pullback", [False, True])
 def test_vector_parameterised_uncertainty_gradient(
-    likelihood_function, custom_pullback
+    likelihood_class, kwargs, custom_pullback
 ):
     predictions = array([0.8, 2.5, 3.7])
     y = array([1.0, 3.0, 4.0])
@@ -94,7 +169,10 @@ def test_vector_parameterised_uncertainty_gradient(
     uncertainty_model = (
         PullbackVectorUncertainty() if custom_pullback else VectorUncertainty()
     )
-    likelihood = likelihood_function(y, uncertainty_model)
+    parameterised_kwargs = kwargs.copy()
+    for argument in kwargs:
+        parameterised_kwargs[argument] = uncertainty_model
+    likelihood = likelihood_class(y_data=y, **parameterised_kwargs)
 
     _, derivatives = likelihood.derivatives(
         predictions, vector_uncertainty=parameters
@@ -111,66 +189,39 @@ def test_vector_parameterised_uncertainty_gradient(
 
 
 @pytest.mark.parametrize(
-    "likelihood_function",
-    [GaussianLikelihood, LogisticLikelihood, CauchyLikelihood],
+    "likelihood_class, kwargs", likelihood_test_setup
 )
-def test_parameterised_uncertainties(likelihood_function):
-    x, y, sigma = StraightLine.testing_data()
+@pytest.mark.parametrize("uncertainty_setup", uncertainty_model_test_setup)
+def test_parameterised_uncertainties(
+    likelihood_class, kwargs, uncertainty_setup
+):
+    x, y, _ = StraightLine.testing_data()
+    parameterised_kwargs = kwargs.copy()
+    uncertainty_parameters = {}
 
-    def run_uncertainty_model(uncertainty_model):
-        likelihood_func = likelihood_function(
-            y, uncertainty_model,
-        )
+    for index, argument in enumerate(kwargs):
+        model, parameters = uncertainty_setup(y, index)
+        parameterised_kwargs[argument] = model
+        uncertainty_parameters.update(parameters)
 
-        model = StraightLine(x_axis=x)
-
-        line_diagnostic = Diagnostic(
-            likelihood=likelihood_func, diagnostic_model=model, name="straight_line"
-        )
-
-        posterior = build_posterior(
-            diagnostics=[line_diagnostic], priors=[], field_models=[]
-        )
-
-        test_params = {
+    likelihood = likelihood_class(y_data=y, **parameterised_kwargs)
+    diagnostic = Diagnostic(
+        likelihood=likelihood,
+        diagnostic_model=StraightLine(x_axis=x),
+        name="straight_line",
+    )
+    posterior = build_posterior(
+        diagnostics=[diagnostic], priors=[], field_models=[]
+    )
+    test_point = posterior.merge_parameters(
+        {
             "gradient": 1.0,
             "y_intercept": -1.0,
-            "constant_error": 0.5,
-            "test_constant_error": 0.3,
-            "test_fractional_error": 0.05,
+            **uncertainty_parameters,
         }
-        test_point = posterior.merge_parameters(test_params)
-
-        parameter_bounds = {
-            name: (-inf, inf) for name in posterior.parameter_set
-        }
-        parameter_bounds.update(
-            {parameter.name: (1e-3, 10.0) for parameter in uncertainty_model.parameters}
-        )
-        bounds = posterior.build_bounds(parameter_bounds)
-
-        opt_result = minimize(
-            fun=posterior.cost,
-            x0=test_point,
-            jac=posterior.cost_gradient,
-            bounds=bounds,
-        )
-
-        num_grad = approx_fprime(
-            xk=test_point,
-            f=posterior.log_probability,
-            epsilon=1e-8,
-        )
-        analytic_grad = posterior.gradient(test_point)
-
-        assert abs(analytic_grad / num_grad - 1).max() < 1e-5
-
-    constant_uncertainty = ConstantUncertainty(
-        n_data=y.size, parameter_name="constant_error"
     )
 
-    run_uncertainty_model(constant_uncertainty)
+    numerical = approx_fprime(test_point, posterior.log_probability)
+    analytic = posterior.gradient(test_point)
 
-    linear_uncertainty = LinearUncertainty(y_data=y, parameter_prefix="test")
-
-    run_uncertainty_model(linear_uncertainty)
+    assert allclose(analytic, numerical, rtol=1e-5, atol=1e-7)
