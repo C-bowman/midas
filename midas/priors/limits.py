@@ -1,5 +1,5 @@
-from numpy import eye, full, ndarray, maximum, atleast_1d
-from scipy.sparse import sparray
+from numpy import full, ndarray, maximum, atleast_1d
+from scipy.sparse import sparray, eye_array
 from midas.posterior import BasePrior
 from midas.parameters import Parameters, Fields, FieldRequest, ParameterVector
 from midas.validation import validate_numeric_input, validate_name
@@ -82,7 +82,7 @@ class SoftLimitPrior(BasePrior):
                 """
             )
 
-        self.A = operator if operator is not None else eye(self.n_targets)
+        self.A = operator if operator is not None else eye_array(self.n_targets)
         assert isinstance(self.A, (ndarray, sparray))
         assert self.A.ndim == 2
         assert self.A.shape[1] == self.n_targets
@@ -201,7 +201,7 @@ class SoftBoundsPrior(BasePrior):
                 """
             )
 
-        self.A = operator if operator is not None else eye(self.n_targets)
+        self.A = operator if operator is not None else eye_array(self.n_targets)
         if not isinstance(self.A, (ndarray, sparray)):
             raise TypeError(
                 "SoftBoundsPrior 'operator' must be a numpy array or a scipy sparse array."
