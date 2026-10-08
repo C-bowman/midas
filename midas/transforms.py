@@ -1,4 +1,4 @@
-from numpy import ndarray, sqrt, arctan2
+from numpy import ndarray, hypot, arctan2
 from scipy.interpolate import RectBivariateSpline
 from abc import ABC, abstractmethod
 from midas.types import Coordinates
@@ -85,7 +85,7 @@ class CylindricalTransform(CoordinateTransform):
             ``"phi"`` is the azimuthal angle in radians.
         """
         return {
-            "R": sqrt(coords["x"] ** 2 + coords["y"] ** 2),
+            "R": hypot(coords["x"], coords["y"]),
             "z": coords["z"],
             "phi": arctan2(coords["y"], coords["x"]),
         }
