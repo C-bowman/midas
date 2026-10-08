@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from numpy import arange, atleast_1d, concatenate, diff, ndarray, zeros, exp
+from numpy import arange, atleast_1d, ascontiguousarray, concatenate, diff, ndarray, zeros, exp
 from scipy.linalg import solve
 from scipy.sparse import sparray
 from tokamesh.mesh import TriangularMesh
@@ -251,6 +251,17 @@ class ExSplineField(PiecewiseLinearField):
         values = exp(basis @ parameters[self.param_name])
         return values, {self.param_name: basis * values[:, None]}
 
+    def values_and_pullback(
+        self, parameters: dict[str, ndarray], field: FieldRequest
+    ) -> tuple[ndarray, Pullback]:
+        basis = self.get_basis(field)
+        values = exp(basis @ parameters[self.param_name])
+
+        def pullback(vector: ndarray) -> dict[str, ndarray]:
+            return {self.param_name: basis.T @ (vector * values)}
+
+        return values, pullback
+
 
 class TriangularMeshField(FieldModel):
     """
@@ -376,9 +387,9 @@ def b_spline_basis(x: ndarray, knots: ndarray, order=3, derivatives=False) -> nd
             derivs[:, -(n+1)] += derivs[:, -n:].sum(axis=1)
             derivs = derivs[:, n:-n]
 
-        return basis, derivs
+        return ascontiguousarray(basis), ascontiguousarray(derivs)
     else:
-        return basis
+        return ascontiguousarray(basis)
 
 
 def cubic_spline_basis(x: ndarray, knots: ndarray) -> ndarray:
