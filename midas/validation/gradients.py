@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from numpy import isfinite, ndarray, zeros
+from numpy import isfinite, ndarray, zeros, inf
 from numpy.random import default_rng
-from numpy.linalg import norm as l2_norm
+from scipy.linalg import norm as l2_norm
 from midas.posterior import Posterior
 from midas.normalisation import NormalisedCost
 
@@ -28,15 +28,15 @@ def finite_difference_gradient(
 
 
 def vector_error_metrics(u: ndarray, v: ndarray) -> tuple[float, float]:
-    mag_u = l2_norm(u)
-    mag_v = l2_norm(v)
+    mag_u = l2_norm(u, check_finite=False)
+    mag_v = l2_norm(v, check_finite=False)
 
     if mag_u == 0 and mag_v == 0:
         return 0.0, 0.0
     if (mag_u == 0) != (mag_v == 0):
         return 1.0, 1.0
     
-    direction_error = l2_norm(u / mag_u - v / mag_v)
+    direction_error = l2_norm(u / mag_u - v / mag_v, check_finite=False)
     magnitude_error = abs(mag_u - mag_v) / max(mag_u, mag_v)
     return magnitude_error, direction_error
 
@@ -221,7 +221,7 @@ def validate_gradient(
         shape ``(posterior.n_params, 2)``.
 
     :param n_samples: \
-        Number of random normalised parameter points to test.
+        Number of random normalised parameter points to test. Must be at least 1.
 
     :param dir_tol: \
         Maximum accepted error between the gradient directions.
@@ -238,8 +238,11 @@ def validate_gradient(
         component and parameter vector.
 
     :raises ValueError: \
-        If any sampled point produces a non-finite cost.
+        If ``n_samples`` is less than 1 or any sampled point produces a non-finite cost.
     """
+
+    if n_samples < 1:
+        raise ValueError("n_samples must be at least 1.")
 
     norm = NormalisedCost(posterior=posterior, bounds=parameter_bounds)
     rng = default_rng()
@@ -272,6 +275,9 @@ def validate_gradient(
                     param_slice=slc,
                     initial_step=initial_step,
                 )
+
+                dir_err = dir_err if isfinite(dir_err) else inf
+                mag_err = mag_err if isfinite(mag_err) else inf
 
                 r = results[component.name][parameter]
                 r["max_dir_err"] = max(r["max_dir_err"], dir_err)

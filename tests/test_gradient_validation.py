@@ -277,7 +277,8 @@ def test_sampled_validator_rejects_nonfinite_cost(sampled_validator, monkeypatch
     estimates.assert_not_called()
 
 
-def test_gradient_with_diagnostic_and_field_prior(monkeypatch):
+@pytest.mark.parametrize("n_samples", [1, 3])
+def test_gradient_with_diagnostic_and_field_prior(monkeypatch, n_samples):
     monkeypatch.setattr("midas.validation.gradients.default_rng", lambda: np.random.default_rng(777))
     axis, data, sigma = StraightLine.testing_data()
     diagnostic = Diagnostic(
@@ -292,9 +293,9 @@ def test_gradient_with_diagnostic_and_field_prior(monkeypatch):
     posterior = build_posterior([diagnostic], [prior], [field])
     bounds = np.array([[0.1, 3.0]] * 3 + [[1.0, 5.0], [-3.0, 0.0]])
 
-    report = validate_gradient(posterior, bounds, n_samples=3)
+    report = validate_gradient(posterior, bounds, n_samples=n_samples)
 
-    assert report.n_samples == 3
+    assert report.n_samples == n_samples
     assert set(report.results) == {"line", "emission_prior"}
     for parameters in report.results.values():
         assert set(parameters) == set(posterior.slices)
@@ -303,7 +304,7 @@ def test_gradient_with_diagnostic_and_field_prior(monkeypatch):
         ("emission_prior", "emission_linear_basis"),
     ]:
         accuracy = report.results[component][parameter]
-        assert accuracy["n_passes"] == 3
+        assert accuracy["n_passes"] == n_samples
         assert accuracy["max_dir_err"] < 1e-4
         assert accuracy["max_mag_err"] < 1e-4
 
