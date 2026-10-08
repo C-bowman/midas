@@ -1,4 +1,4 @@
-from numpy import ndarray, log, exp, logaddexp, sqrt, pi, isfinite, where
+from numpy import ndarray, log, tanh, logaddexp, sqrt, pi, isfinite, where
 from midas.posterior import LikelihoodFunction
 from midas.parameters import Parameters
 from midas.likelihoods.uncertainties import UncertaintyModel
@@ -298,7 +298,7 @@ class LogisticLikelihood(LikelihoodFunction):
         inv_scale = 1 / scale
         z = (self.y - predictions) / scale
 
-        prediction_derivative = (2 / (1 + exp(-z)) - 1) * inv_scale
+        prediction_derivative = tanh(0.5 * z) * inv_scale
         dL_ds = (prediction_derivative * z - inv_scale) * self.scale_fac
         parameter_derivatives = pullback(dL_ds)
         return prediction_derivative, parameter_derivatives
@@ -311,7 +311,7 @@ class LogisticLikelihood(LikelihoodFunction):
         self, predictions: ndarray, **parameters: ndarray
     ) -> tuple[ndarray, dict[str, ndarray]]:
         z = (self.y - predictions) * self.inv_scale
-        return (2 / (1 + exp(-z)) - 1) * self.inv_scale, self.empty_derivatives
+        return tanh(0.5 * z) * self.inv_scale, self.empty_derivatives
 
 
 class CauchyLikelihood(LikelihoodFunction):
